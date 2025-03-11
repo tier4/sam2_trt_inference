@@ -1,0 +1,62 @@
+#pragma once
+
+#include <onnxruntime_cxx_api.h>
+#include <opencv2/opencv.hpp>
+#include <memory>
+#include <vector>
+#include <string>
+#include "sam2_decoder.hpp"
+#include "sam2_encoder.hpp"
+
+class SAM2Image
+{
+public:
+    // 构造函数
+    SAM2Image(const std::string &encoder_path, const std::string &decoder_path, const cv::Size encoder_input_size, const std::string &model_precision, const int decoder_batch_limit);
+
+    // 设置输入图像
+    void RunEncoder(const std::vector<cv::Mat> &images);
+
+
+    // 设置一个矩形框并生成掩码
+    void RunDecoder(const std::vector<std::vector<cv::Rect>> &boxes);
+
+    // 解码掩码
+    void DecodeMask(const cv::Size &orig_im_size, const int img_batch_idx, std::vector<cv::Mat> &masks_per_image);
+
+    // 获取生成的所有掩码
+    const std::vector<std::vector<cv::Mat>> &GetMasks();
+
+private:
+    // 清除框的坐标和标签
+    void ClearBoxes();
+
+    // Encoder 对象
+    SAM2ImageEncoder encoder_;
+
+    // Decoder 对象
+    std::unique_ptr<SAM2ImageDecoder> decoder_;
+
+    // 解码器的路径
+    std::string decoder_path_;
+
+    // 解码器的bbox批量限制
+    int decoder_batch_limit_;
+
+    // 模型精度（fp16 或 fp32）
+    std::string model_precision_;
+
+    // Encoder 的中间特征
+    const Ort::Float16_t* high_res_feats_0_;
+    const Ort::Float16_t* high_res_feats_1_;
+    const Ort::Float16_t* image_embed_;
+
+    // 框和掩码
+    std::vector<std::vector<cv::Mat>> masks_;
+    std::vector<std::vector<cv::Point2f>> box_coords_;
+    std::vector<std::vector<float>> box_labels_;
+
+    // 输入图像的原始尺寸
+    std::vector<cv::Size> orig_im_size_;
+};
+
