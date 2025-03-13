@@ -8,56 +8,85 @@
 #include "sam2_encoder.hpp"
 #include "utils.hpp"
 
-SAM2ImageEncoder::SAM2ImageEncoder(const std::string &path, const std::string &model_precision)
+SAM2ImageEncoder::SAM2ImageEncoder(const std::string &onnx_path, 
+                                   const std::string &engine_precision,
+                                    const tensorrt_common::BatchConfig &batch_config,
+                                    const size_t max_workspace_size,
+                                    const tensorrt_common::BuildConfig build_config)
+                                    : encoder_precision_(engine_precision)
 {
-    Ort::SessionOptions session_options;
-    OrtCUDAProviderOptions cuda_options;
-    session_options.SetLogSeverityLevel(4);
-    session_options.SetIntraOpNumThreads(1);
-    // Optimization will take time and memory during startup
-    // sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
+    trt_encoder_ = std::make_unique<tensorrt_common::TrtCommon>(onnx_path, 
+                                                                engine_precision,
+                                                                nullptr,
+                                                                batch_config,
+                                                                max_workspace_size,
+                                                                build_config);
 
-    cuda_options.device_id = 0;                                             // GPU_ID
-    cuda_options.cudnn_conv_algo_search = OrtCudnnConvAlgoSearchExhaustive; // Algo to search for Cudnn
-    cuda_options.arena_extend_strategy = 0;
-    // May cause data race in some condition
-    cuda_options.do_copy_in_default_stream = 0;
-    session_options.AppendExecutionProvider_CUDA(cuda_options); // Add CUDA options to session options
+    trt_encoder_->setup();
 
-    session_ = Ort::Session(env_, path.c_str(), session_options);
+    if(!trt_encoder_->isInitialized())
+    {
+        throw std::runtime_error("Failed to initialize TRT encoder");
+        return;
+    }
 
     GetInputDetails();
     GetOutputDetails();
-    model_precision_ = (model_precision == "fp16") ? CV_16F : CV_32F;
+
+    allocateGpuMemory();
+}
+
+SAM2ImageEncoder::~SAM2ImageEncoder()
+{
+}
+
+void SAM2ImageEncoder::allocateGpuMemory()
+{
+    const auto input_dims = trt_encoder_->getBindingDimensions(0);
+    const auto embed_dims = trt_encoder_->getBindingDimensions(1);
+    const auto feats_1_dims = trt_encoder_->getBindingDimensions(2);
+    const auto feats_0_dims = trt_encoder_->getBindingDimensions(3);
+    
+    const auto input_size = std::accumulate(input_dims.d + 1, input_dims.d + input_dims.nbDims, 1, std::multiplies<int>());
+    feats_0_size_ = std::accumulate(feats_0_dims.d + 1, feats_0_dims.d + feats_0_dims.nbDims, 1, std::multiplies<int>());
+    feats_1_size_ = std::accumulate(feats_1_dims.d + 1, feats_1_dims.d + feats_1_dims.nbDims, 1, std::multiplies<int>());
+    embed_size_ = std::accumulate(embed_dims.d + 1, embed_dims.d + embed_dims.nbDims, 1, std::multiplies<int>());
+
+    
+    //CPU part
+    feats_0_data = cuda_utils::make_unique_host<float[]>(feats_0_size_, cudaHostAllocPortable);
+    feats_1_data = cuda_utils::make_unique_host<float[]>(feats_1_size_, cudaHostAllocPortable);
+    embed_data = cuda_utils::make_unique_host<float[]>(embed_size_, cudaHostAllocPortable);
+
+    //GPU part
+    input_d_ = cuda_utils::make_unique<float[]>(input_size);
+    feats_0_data_d_ = cuda_utils::make_unique<float[]>(feats_0_size_);
+    feats_1_data_d_ = cuda_utils::make_unique<float[]>(feats_1_size_);
+    embed_data_d_ = cuda_utils::make_unique<float[]>(embed_size_);
 }
 
 void SAM2ImageEncoder::EncodeImage(const std::vector<cv::Mat> &images)
 {
     cv::Mat input_tensor = PrepareInput(images);
-    std::vector<Ort::Value> outputs = Infer(input_tensor);
-    ProcessOutput(outputs);
+    bool success = Infer(input_tensor);
+    if(!success)
+    {
+        throw std::runtime_error("Failed to encode image");
+        return;
+    }
+    ProcessOutput();
 }
 
 void SAM2ImageEncoder::GetInputDetails()
 {
-    const Ort::TypeInfo input_type_info = session_.GetInputTypeInfo(0);
-    const auto input_tensor_info = input_type_info.GetTensorTypeAndShapeInfo();
-    const auto input_shape = input_tensor_info.GetShape();
-
-    input_height_ = input_shape[2];
-    input_width_ = input_shape[3];
-
-    auto input_name = session_.GetInputNameAllocated(0, allocator);
-    input_names_.push_back(input_name.get());
+    const auto input_dims = trt_encoder_->getBindingDimensions(0);
+    batch_size_ = input_dims.d[0];
+    input_height_ = input_dims.d[2];
+    input_width_ = input_dims.d[3];
 }
 
 void SAM2ImageEncoder::GetOutputDetails()
 {
-    for (size_t i = 0; i < session_.GetOutputCount(); ++i)
-    {
-        auto output_name = session_.GetOutputNameAllocated(i, allocator);
-        output_names_.push_back(output_name.get());
-    }
 }
 
 
@@ -68,7 +97,7 @@ cv::Mat SAM2ImageEncoder::PrepareInput(const std::vector<cv::Mat> &images)
     std::vector<float> std{0.229f, 0.224f, 0.225f};  // RGB 标准差
 
     int num_images = images.size();
-    batch_size_ = num_images;
+    assert(num_images <= batch_size_);
 
     // mean, normalize to 0~1, to NCHW
     cv::Mat normalized_images = cv::dnn::blobFromImages(images, 1.0 / 255.0, cv::Size(input_width_, input_height_), mean, true, false, CV_32F);
@@ -86,43 +115,44 @@ cv::Mat SAM2ImageEncoder::PrepareInput(const std::vector<cv::Mat> &images)
             }
         }
     }
-    normalized_images.convertTo(normalized_images, CV_16F);
+    // normalized_images.convertTo(normalized_images, CV_16F);
     return normalized_images;
 }
 
-std::vector<Ort::Value> SAM2ImageEncoder::Infer(const cv::Mat &input_tensor)
+bool SAM2ImageEncoder::Infer(const cv::Mat &input_tensor)
 {
-    std::vector<int64_t> input_shape = {batch_size_, 3, static_cast<int64_t>(input_height_), static_cast<int64_t>(input_width_)};
-    size_t input_tensor_size = batch_size_ * 3 * input_height_ * input_width_;
+    // If the data is continuous, we can use it directly. Otherwise, we need to clone it for contiguous memory.
+    auto input_tensor_ = input_tensor.isContinuous() ? input_tensor.reshape(1, input_tensor.total()) : input_tensor.reshape(1, input_tensor.total()).clone();
+    // copy input to GPU
+    CHECK_CUDA_ERROR(cudaMemcpyAsync(input_d_.get(), input_tensor_.ptr<float>(), input_tensor_.total() * sizeof(float), cudaMemcpyHostToDevice, *stream_));
 
-    std::vector<Ort::Float16_t> input_tensor_values(input_tensor.begin<cv::float16_t>(), input_tensor.end<cv::float16_t>());
-    Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeCPUInput);
+    //prepare GPU buffers
+    std::vector<void *> buffers = {
+                                    input_d_.get(), 
+                                    embed_data_d_.get(),
+                                    feats_1_data_d_.get(),
+                                    feats_0_data_d_.get(),
+                                    };
 
-
-    Ort::Value input_tensor_ort = Ort::Value::CreateTensor<Ort::Float16_t>(
-        memory_info, input_tensor_values.data(), input_tensor_size, input_shape.data(), input_shape.size());
-
-    std::vector<const char *> input_names_cstr;
-    for (const auto &name : input_names_)
+    // execute inference
+    bool success = trt_encoder_->enqueueV2(buffers.data(), *stream_, nullptr);
+    if(!success)
     {
-        input_names_cstr.push_back(name.c_str());
+        throw std::runtime_error("Failed to execute inference");
+        return false;
     }
 
-    std::vector<const char *> output_names_cstr;
-    for (const auto &name : output_names_)
-    {
-        output_names_cstr.push_back(name.c_str());
-    }
-
-    return session_.Run(Ort::RunOptions{nullptr}, input_names_cstr.data(), &input_tensor_ort, 1,
-                        output_names_cstr.data(), output_names_.size());
+    // copy output to CPU
+    CHECK_CUDA_ERROR(cudaMemcpyAsync(feats_0_data.get(), feats_0_data_d_.get(), feats_0_size_ * sizeof(float), cudaMemcpyDeviceToHost, *stream_));
+    CHECK_CUDA_ERROR(cudaMemcpyAsync(feats_1_data.get(), feats_1_data_d_.get(), feats_1_size_ * sizeof(float), cudaMemcpyDeviceToHost, *stream_));
+    CHECK_CUDA_ERROR(cudaMemcpyAsync(embed_data.get(), embed_data_d_.get(), embed_size_ * sizeof(float), cudaMemcpyDeviceToHost, *stream_));
+    
+    // synchronize
+    CHECK_CUDA_ERROR(cudaStreamSynchronize(*stream_));
+    
+    return true;
 }
 
-void SAM2ImageEncoder::ProcessOutput(const std::vector<Ort::Value> &outputs)
+void SAM2ImageEncoder::ProcessOutput()
 {
-    feats_0_data = outputs[0].GetTensorData<Ort::Float16_t>();
-
-    feats_1_data = outputs[1].GetTensorData<Ort::Float16_t>();
-
-    embed_data = outputs[2].GetTensorData<Ort::Float16_t>();
 }

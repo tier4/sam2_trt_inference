@@ -1,5 +1,5 @@
 # sam2_ort_cpp
-cpp version of sam2_onnxruntime with optimization(this version only supports fp16)
+TensorRT inference framework of SAM2(cpp version) with model convertor from onnx to TRT engine.
 
 ## set-up environment
 ### onnxruntime

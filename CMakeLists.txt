@@ -26,11 +26,31 @@ set(SOURCES
     src/sam2_encoder.cpp
     src/sam2_decoder.cpp
     src/utils.cpp
+    src/tensorrt_common/simple_profiler.cpp
+    src/tensorrt_common/tensorrt_common.cpp
 )
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
 
 # 定义可执行文件
 add_executable(MyONNXGPUApp ${SOURCES})
 
 # 链接库文件
-target_link_libraries(MyONNXGPUApp PRIVATE ${ONNXRUNTIME_LIB} ${OpenCV_LIBS} CUDA::cudart OpenMP::OpenMP_CXX)
+target_link_libraries(MyONNXGPUApp PRIVATE 
+    ${ONNXRUNTIME_LIB}
+    ${OpenCV_LIBS}
+    CUDA::cudart
+    OpenMP::OpenMP_CXX
+    nvinfer
+    nvinfer_plugin
+    nvparsers
+    nvonnxparser
+    cuda
+    cudart
+    gflags
+    boost_system
+    boost_filesystem
+    dl
+    "stdc++fs"
+    "stdc++"
+)
 target_include_directories(MyONNXGPUApp PRIVATE include)

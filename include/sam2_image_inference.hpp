@@ -8,6 +8,10 @@
 #include "sam2_decoder.hpp"
 #include "sam2_encoder.hpp"
 
+#include <tensorrt_common/tensorrt_common.hpp>
+#include <cuda_utils/cuda_unique_ptr.hpp>
+#include <cuda_utils/stream_unique_ptr.hpp>
+
 class SAM2Image
 {
 public:
@@ -32,7 +36,7 @@ private:
     void ClearBoxes();
 
     // Encoder 对象
-    SAM2ImageEncoder encoder_;
+    std::unique_ptr<SAM2ImageEncoder> encoder_;
 
     // Decoder 对象
     std::unique_ptr<SAM2ImageDecoder> decoder_;
@@ -47,9 +51,9 @@ private:
     std::string model_precision_;
 
     // Encoder 的中间特征
-    const Ort::Float16_t* high_res_feats_0_;
-    const Ort::Float16_t* high_res_feats_1_;
-    const Ort::Float16_t* image_embed_;
+    CudaUniquePtrHost<float[]> high_res_feats_0_;
+    CudaUniquePtrHost<float[]> high_res_feats_1_;
+    CudaUniquePtrHost<float[]> image_embed_;
 
     // 框和掩码
     std::vector<std::vector<cv::Mat>> masks_;

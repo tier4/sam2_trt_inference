@@ -9,21 +9,27 @@
 #include "utils.hpp"
 
 SAM2Image::SAM2Image(const std::string &encoder_path, const std::string &decoder_path, const cv::Size encoder_input_size, const std::string &model_precision, const int decoder_batch_limit)
-    : encoder_(encoder_path, model_precision), decoder_(std::make_unique<SAM2ImageDecoder>(decoder_path, model_precision, encoder_input_size)), decoder_batch_limit_(decoder_batch_limit), model_precision_(model_precision) {}
+    :decoder_batch_limit_(decoder_batch_limit), model_precision_(model_precision) 
+{
+    // make config
+    tensorrt_common::BatchConfig batch_config_encoder = {1, 1, 1};
+    tensorrt_common::BatchConfig batch_config_decoder = {1, decoder_batch_limit/2, decoder_batch_limit};
+    tensorrt_common::BuildConfig build_config_encoder("Entropy", -1, false, false, false, 0.0, false, {});
+    tensorrt_common::BuildConfig build_config_decoder("Entropy", -1, false, false, false, 0.0, false, {});
+    const size_t max_workspace_size = 1 << 30;
+    // genrate encoder and decoder
+    encoder_ = std::make_unique<SAM2ImageEncoder>(encoder_path, model_precision, batch_config_encoder, max_workspace_size, build_config_encoder);
+    decoder_ = std::make_unique<SAM2ImageDecoder>(decoder_path, model_precision, batch_config_decoder, max_workspace_size, build_config_decoder, encoder_input_size);
+}
 
 void SAM2Image::RunEncoder(const std::vector<cv::Mat> &images)
 {
     // 清除所有的变量
     masks_.clear();
-    box_coords_.clear();
-    box_labels_.clear();
     orig_im_size_.clear();
 
     // 跑encoder得到结果
-    encoder_.EncodeImage(images);
-    high_res_feats_0_ = encoder_.feats_0_data;
-    high_res_feats_1_ = encoder_.feats_1_data;
-    image_embed_ = encoder_.embed_data;
+    encoder_->EncodeImage(images);
 
     for (const auto &image : images) {
         orig_im_size_.push_back(image.size());
@@ -70,7 +76,9 @@ void SAM2Image::RunDecoder(const std::vector<std::vector<cv::Rect>> &boxes)
 
 void SAM2Image::DecodeMask(const cv::Size &orig_im_size, const int img_batch_idx, std::vector<cv::Mat> &masks_per_image)
 {
-    decoder_->Predict(image_embed_, high_res_feats_0_, high_res_feats_1_, box_coords_, box_labels_, orig_im_size, img_batch_idx);
+    decoder_->Predict(encoder_->embed_data, encoder_->feats_0_data, encoder_->feats_1_data, 
+                    box_coords_, box_labels_, orig_im_size, img_batch_idx, 
+                    encoder_->embed_size_, encoder_->feats_0_size_, encoder_->feats_1_size_);
     auto masks_per_image_per_decoder_batch = decoder_->result_masks;
     masks_per_image.insert(masks_per_image.end(), masks_per_image_per_decoder_batch.begin(), masks_per_image_per_decoder_batch.end());
 }
