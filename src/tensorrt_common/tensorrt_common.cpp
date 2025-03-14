@@ -366,9 +366,40 @@ void TrtCommon::printNetworkInfo(const std::string & onnx_file_path)
     if (layer_type == nvinfer1::LayerType::kCONSTANT) {
       continue;
     }
+    if (layer_type == nvinfer1::LayerType::kCONDITION) {
+      continue;
+    }
+
+    // 检查输入是否有效
+    if (layer->getNbInputs() == 0) {
+      std::cout << "警告：第 " << i << " 层没有输入" << std::endl;
+      std::cout<< "layer name: " << name << std::endl;
+      continue;
+    }
+
     nvinfer1::ITensor * in = layer->getInput(0);
+    if (!in) {
+      std::cout << "警告：第 " << i << " 层的输入为空指针" << std::endl;
+      std::cout<< "layer name: " << name << std::endl;
+      continue;
+    }
+
     nvinfer1::Dims dim_in = in->getDimensions();
+
+    // 检查输出是否有效
+    if (layer->getNbOutputs() == 0) {
+      std::cout << "警告：第 " << i << " 层没有输出" << std::endl;
+      std::cout<< "layer name: " << name << std::endl;
+      continue;
+    }
+
     nvinfer1::ITensor * out = layer->getOutput(0);
+    if (!out) {
+      std::cout << "警告：第 " << i << " 层的输出为空指针" << std::endl;
+      std::cout<< "layer name: " << name << std::endl;
+      continue;
+    }
+
     nvinfer1::Dims dim_out = out->getDimensions();
 
     if (layer_type == nvinfer1::LayerType::kCONVOLUTION) {
@@ -544,12 +575,24 @@ bool TrtCommon::buildEngineFromOnnx(
   for (int i = num-1; i >=0; i--) {
     nvinfer1::ILayer * layer = network->getLayer(i);
     std::string name = layer->getName();
+    auto layer_type = layer->getType();
+    
+    if (layer_type == nvinfer1::LayerType::kCONDITION) {
+      continue;
+    }
+
+    // 检查输出是否有效
+    if (layer->getNbOutputs() == 0) {
+      std::cout << "警告：第 " << i << " 层没有输出" << std::endl;
+      std::cout<< "layer name: " << name << std::endl;
+      continue;
+    }
     nvinfer1::ITensor * out = layer->getOutput(0);
 
     for (int j = 0; j < (int)(build_config_->debug_tensors.size()); j++) {
       if (name == build_config_->debug_tensors[j]) {
-	network->markOutput(*out);
-	std::cout << "MarkOutput for Debugging :" << name << std::endl;
+        network->markOutput(*out);
+        std::cout << "MarkOutput for Debugging :" << name << std::endl;
       }
     }
   }
@@ -573,9 +616,9 @@ bool TrtCommon::buildEngineFromOnnx(
       const auto input_dims = input->getDimensions();
       const auto B = input_dims.d[0];      
       if (B > 0) {
-	// Fixed batch size
-	batch_config_ = {B, B, B};
-	continue;
+        // Fixed batch size
+        // batch_config_ = {B, B, B};
+        continue;
       }
 
       nvinfer1::Dims min_input_dims{input_dims};

@@ -30,6 +30,7 @@ void process_image(std::string &encoder_path,
         bbox_names.push_back(entry.path().string());
     }
 
+
     // std::sort(image_names.begin(), image_names.end());
     // std::sort(bbox_names.begin(), bbox_names.end());
     assert(image_names.size() == bbox_names.size());
