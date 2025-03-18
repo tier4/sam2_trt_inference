@@ -166,6 +166,9 @@ TrtCommon::TrtCommon(
   model_profiler_("Model"),
   host_profiler_("Host")
 {
+  // 设置日志级别为VERBOSE，输出最详细的信息
+  // logger_.setReportableSeverity(nvinfer1::ILogger::Severity::kVERBOSE);
+
   // Check given precision is valid one
   if (!is_valid_precision_string(precision)) {
     return;

@@ -15,10 +15,12 @@ SAM2Image::SAM2Image(const std::string &encoder_path, const std::string &decoder
     tensorrt_common::BatchConfig batch_config_decoder = {1, decoder_batch_limit/2, decoder_batch_limit};
     tensorrt_common::BuildConfig build_config_encoder("Entropy", -1, false, false, false, 0.0, false, {});
     tensorrt_common::BuildConfig build_config_decoder("Entropy", -1, false, false, false, 0.0, false, {});
-    const size_t max_workspace_size = 1 << 30;
-    // genrate encoder and decoder
+    const size_t max_workspace_size = 4ULL << 30;
+    
+    // generate encoder and decoder
     encoder_ = std::make_unique<SAM2ImageEncoder>(encoder_path, model_precision, batch_config_encoder, max_workspace_size, build_config_encoder);
-    decoder_ = std::make_unique<SAM2ImageDecoder>(decoder_path, model_precision, batch_config_decoder, max_workspace_size, build_config_decoder, encoder_input_size);
+    std::vector<int> encoder_output_sizes = {encoder_->embed_size_, encoder_->feats_0_size_, encoder_->feats_1_size_};
+    decoder_ = std::make_unique<SAM2ImageDecoder>(decoder_path, model_precision, batch_config_decoder, max_workspace_size, build_config_decoder, encoder_input_size, encoder_output_sizes);
 }
 
 void SAM2Image::RunEncoder(const std::vector<cv::Mat> &images)
@@ -67,19 +69,23 @@ void SAM2Image::RunDecoder(const std::vector<std::vector<cv::Rect>> &boxes)
             box_coords_ = std::move(local_box_coords);
             box_labels_ = std::move(local_box_labels);
 
-            DecodeMask(orig_im_size_[i], i, masks_per_image);
+            DecodeMask(orig_im_size_[i], i, masks_per_image, current_batch_size);
         }
         masks_.push_back(masks_per_image);
     }
 }
 
-void SAM2Image::DecodeMask(const cv::Size &orig_im_size, const int img_batch_idx, std::vector<cv::Mat> &masks_per_image)
+void SAM2Image::DecodeMask(const cv::Size &orig_im_size, const int img_batch_idx, std::vector<cv::Mat> &masks_per_image, const int current_batch_size)
 {
+    // auto start_predict = std::chrono::high_resolution_clock::now();
     decoder_->Predict(encoder_->embed_data, encoder_->feats_0_data, encoder_->feats_1_data, 
-                    box_coords_, box_labels_, orig_im_size, img_batch_idx, 
-                    encoder_->embed_size_, encoder_->feats_0_size_, encoder_->feats_1_size_);
+                    box_coords_, box_labels_, orig_im_size, img_batch_idx, current_batch_size);
+    // auto end_predict = std::chrono::high_resolution_clock::now();
+    // auto duration_predict = std::chrono::duration<double>(end_predict - start_predict);
+    // std::cout << "Predict time: " << duration_predict.count() << "s" << std::endl;
     auto masks_per_image_per_decoder_batch = decoder_->result_masks;
     masks_per_image.insert(masks_per_image.end(), masks_per_image_per_decoder_batch.begin(), masks_per_image_per_decoder_batch.end());
+
 }
 
 const std::vector<std::vector<cv::Mat>> &SAM2Image::GetMasks()

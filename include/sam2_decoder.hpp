@@ -24,13 +24,14 @@ public:
                     const size_t max_workspace_size,
                     const tensorrt_common::BuildConfig build_config,
                     const cv::Size &encoder_input_size, 
+                    const std::vector<int> &encoder_output_sizes,
                     float mask_threshold = 0.0);
     ~SAM2ImageDecoder();
 
     // 预测方法
     void Predict(CudaUniquePtrHost<float[]> &image_embed, CudaUniquePtrHost<float[]> &high_res_feats_0, CudaUniquePtrHost<float[]> &high_res_feats_1,
                  const std::vector<std::vector<cv::Point2f>> &point_coords, const std::vector<std::vector<float>> &point_labels,
-                 const cv::Size &orig_im_size, const int batch_idx, const int image_embed_size, const int high_res_feats_0_size, const int high_res_feats_1_size);
+                 const cv::Size &orig_im_size, const int batch_idx, const int current_batch_size);
 
     // 结果掩码
     std::vector<cv::Mat> result_masks;
@@ -52,6 +53,9 @@ public:
 private:
     // 分配 GPU 内存
     void allocateGpuMemory();
+
+    // 计算内存大小
+    void CalculateMemorySize(const int decoder_batch_limit, const int image_embed_size, const int high_res_feats_0_size, const int high_res_feats_1_size);
     
     // I/O张量信息
     std::vector<std::vector<int64_t>> input_output_shapes_;
@@ -80,14 +84,14 @@ private:
 
     // 准备输入数据
     void PrepareInputs(const std::vector<std::vector<cv::Point2f>> &point_coords, const std::vector<std::vector<float>> &point_labels, 
-                       const cv::Size &orig_im_size, const int batch_idx, const int image_embed_size, const int high_res_feats_0_size, const int high_res_feats_1_size);
+                       const cv::Size &orig_im_size);
 
     // 推理过程
     bool Infer(CudaUniquePtrHost<float[]> &image_embed, CudaUniquePtrHost<float[]> &high_res_feats_0, CudaUniquePtrHost<float[]> &high_res_feats_1,
                const int batch_idx);
 
     // 处理推理结果
-    void ProcessOutput(const cv::Size &orig_im_size);
+    void ProcessOutput(const cv::Size &orig_im_size, const int current_batch_size);
 
     // 重置所有变量
     void ResetVariables();

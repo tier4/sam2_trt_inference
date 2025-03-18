@@ -19,9 +19,9 @@ FIXED_INPUTS=(
 
 # Define dynamic inputs (these will have dynamic batch size)
 DYNAMIC_INPUTS=(
-  "point_coords:1x2x2:50x2x2:100x2x2"
-  "point_labels:1x2:50x2:100x2"
-  "mask_input:1x1x256x256:50x1x256x256:100x1x256x256"
+  "point_coords:1x2x2:128x2x2:200x2x2"
+  "point_labels:1x2:128x2:200x2"
+  "mask_input:1x1x256x256:128x1x256x256:200x1x256x256"
 )
 
 # Build the command

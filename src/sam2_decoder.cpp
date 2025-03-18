@@ -13,6 +13,7 @@ SAM2ImageDecoder::SAM2ImageDecoder(const std::string &onnx_path,
                                    const size_t max_workspace_size,
                                    const tensorrt_common::BuildConfig build_config,
                                    const cv::Size &encoder_input_size,
+                                   const std::vector<int> &encoder_output_sizes,
                                    float mask_threshold)
     : encoder_input_size_(encoder_input_size), mask_threshold_(mask_threshold)
 {
@@ -31,8 +32,9 @@ SAM2ImageDecoder::SAM2ImageDecoder(const std::string &onnx_path,
         return;
     }
 
+    CalculateMemorySize(batch_config[2], encoder_output_sizes[0], encoder_output_sizes[1], encoder_output_sizes[2]);
+    allocateGpuMemory();
     GetInputOutputDetails(); 
-    // allocate GPU memory after prepare inputs(decoder's memory depends on bbox size)
 }
 
 SAM2ImageDecoder::~SAM2ImageDecoder()
@@ -63,10 +65,11 @@ void SAM2ImageDecoder::allocateGpuMemory()
 
 void SAM2ImageDecoder::Predict(CudaUniquePtrHost<float[]> &image_embed, CudaUniquePtrHost<float[]> &high_res_feats_0, CudaUniquePtrHost<float[]> &high_res_feats_1,
                                 const std::vector<std::vector<cv::Point2f>> &point_coords, const std::vector<std::vector<float>> &point_labels,
-                                const cv::Size &orig_im_size, const int batch_idx, const int image_embed_size, const int high_res_feats_0_size, const int high_res_feats_1_size)
+                                const cv::Size &orig_im_size, const int batch_idx, const int current_batch_size)
 {
     ResetVariables();
-    PrepareInputs(point_coords, point_labels, orig_im_size, batch_idx, image_embed_size, high_res_feats_0_size, high_res_feats_1_size);
+
+    PrepareInputs(point_coords, point_labels, orig_im_size);
 
     bool success = Infer(image_embed, high_res_feats_0, high_res_feats_1, batch_idx);
     if(!success)
@@ -75,7 +78,7 @@ void SAM2ImageDecoder::Predict(CudaUniquePtrHost<float[]> &image_embed, CudaUniq
         return;
     }
 
-    ProcessOutput(orig_im_size);
+    ProcessOutput(orig_im_size, current_batch_size);
 }
 
 void SAM2ImageDecoder::GetInputOutputDetails()
@@ -91,25 +94,40 @@ void SAM2ImageDecoder::GetInputOutputDetails()
     }
 }
 
-void SAM2ImageDecoder::PrepareInputs( const std::vector<std::vector<cv::Point2f>> &point_coords, const std::vector<std::vector<float>> &point_labels,
-                                     const cv::Size &orig_im_size, const int batch_idx, const int image_embed_size, const int high_res_feats_0_size, const int high_res_feats_1_size)
+void SAM2ImageDecoder::CalculateMemorySize(const int decoder_batch_limit, const int image_embed_size, const int high_res_feats_0_size, const int high_res_feats_1_size)
 {
-    //=========================================================================================================================================
-    // ================================================calculate memory size===============================================================
     // output from encoder
     image_embed_size_ = image_embed_size;
     high_res_feats_0_size_ = high_res_feats_0_size;
     high_res_feats_1_size_ = high_res_feats_1_size;
 
     // bbox prompt
-    int num_labels = point_labels.size();
-    int num_points = point_coords[0].size();
-    std::vector<int64_t> normalized_coords_shape = {num_labels, num_points, 2};
-    std::vector<int64_t> point_labels_shape = {num_labels, num_points};
+    std::vector<int64_t> normalized_coords_shape = {decoder_batch_limit, 2, 2};
+    std::vector<int64_t> point_labels_shape = {decoder_batch_limit, 2};
     normalized_coords_size_ = std::accumulate(normalized_coords_shape.begin(), normalized_coords_shape.end(), 1, std::multiplies<int>());
     point_labels_size_ = std::accumulate(point_labels_shape.begin(), point_labels_shape.end(), 1, std::multiplies<int>());
-    
-    // 设置动态输入的维度 - normalized_coords
+
+    // mask_input
+    int scaled_height = encoder_input_size_.height / scale_factor;
+    int scaled_width = encoder_input_size_.width / scale_factor;
+    std::vector<int64_t> mask_input_shape = {decoder_batch_limit, 1, scaled_height, scaled_width};
+    mask_input_size_ = std::accumulate(mask_input_shape.begin(), mask_input_shape.end(), 1, std::multiplies<int>());
+
+    // has_mask_input
+    std::vector<int64_t> has_mask_input_shape = {1};
+    has_mask_input_size_ = std::accumulate(has_mask_input_shape.begin(), has_mask_input_shape.end(), 1, std::multiplies<int>());
+
+    // output_mask
+    std::vector<int64_t> output_mask_shape = {decoder_batch_limit, 1, scaled_height, scaled_width};
+    output_mask_size_ = std::accumulate(output_mask_shape.begin(), output_mask_shape.end(), 1, std::multiplies<int>());
+
+    // output_confidence
+    std::vector<int64_t> output_confidence_shape = {decoder_batch_limit};
+    output_confidence_size_ = std::accumulate(output_confidence_shape.begin(), output_confidence_shape.end(), 1, std::multiplies<int>());
+
+
+    // set dynamic input dimensions
+    // normalized_coords
     nvinfer1::Dims normalized_coords_dims;
     normalized_coords_dims.nbDims = 3;
     normalized_coords_dims.d[0] = normalized_coords_shape[0];
@@ -117,20 +135,14 @@ void SAM2ImageDecoder::PrepareInputs( const std::vector<std::vector<cv::Point2f>
     normalized_coords_dims.d[2] = normalized_coords_shape[2];
     trt_decoder_->setBindingDimensions(3, normalized_coords_dims);
     
-    // 设置动态输入的维度 - point_labels
+    // point_labels
     nvinfer1::Dims point_labels_dims;
     point_labels_dims.nbDims = 2;
     point_labels_dims.d[0] = point_labels_shape[0];
     point_labels_dims.d[1] = point_labels_shape[1];
     trt_decoder_->setBindingDimensions(4, point_labels_dims);
-
-    // mask_input
-    int scaled_height = encoder_input_size_.height / scale_factor;
-    int scaled_width = encoder_input_size_.width / scale_factor;
-    std::vector<int64_t> mask_input_shape = {num_labels, 1, scaled_height, scaled_width};
-    mask_input_size_ = std::accumulate(mask_input_shape.begin(), mask_input_shape.end(), 1, std::multiplies<int>());
     
-    // 设置动态输入的维度 - mask_input
+    // mask_input
     nvinfer1::Dims mask_input_dims;
     mask_input_dims.nbDims = 4;
     mask_input_dims.d[0] = mask_input_shape[0];
@@ -138,25 +150,10 @@ void SAM2ImageDecoder::PrepareInputs( const std::vector<std::vector<cv::Point2f>
     mask_input_dims.d[2] = mask_input_shape[2];
     mask_input_dims.d[3] = mask_input_shape[3];
     trt_decoder_->setBindingDimensions(5, mask_input_dims);
+}
 
-    // has_mask_input
-    std::vector<int64_t> has_mask_input_shape = {1};
-    has_mask_input_size_ = std::accumulate(has_mask_input_shape.begin(), has_mask_input_shape.end(), 1, std::multiplies<int>());
-
-    // output_mask
-    std::vector<int64_t> output_mask_shape = {num_labels, 1, scaled_height, scaled_width};
-    output_mask_size_ = std::accumulate(output_mask_shape.begin(), output_mask_shape.end(), 1, std::multiplies<int>());
-
-    // output_confidence
-    std::vector<int64_t> output_confidence_shape = {num_labels};
-    output_confidence_size_ = std::accumulate(output_confidence_shape.begin(), output_confidence_shape.end(), 1, std::multiplies<int>());
-
-    //=========================================================================================================================================
-    //=========================================================== allocate GPU memory ===========================================================
-    allocateGpuMemory();
-
-    //=========================================================================================================================================
-    //=========================================================== prepare inputs ===========================================================
+void SAM2ImageDecoder::PrepareInputs( const std::vector<std::vector<cv::Point2f>> &point_coords, const std::vector<std::vector<float>> &point_labels, const cv::Size &orig_im_size)
+{
     // Normalize point coordinates
     int coords_idx = 0;
     for (int i = 0; i < int(point_coords.size()); i++)
@@ -227,36 +224,35 @@ bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]> &image_embed, CudaUnique
     return true;
 }
 
-void SAM2ImageDecoder::ProcessOutput(const cv::Size &orig_im_size)
+void SAM2ImageDecoder::ProcessOutput(const cv::Size &orig_im_size, const int current_batch_size)
 {
     const float *mask_data = output_mask_data.get();
     auto mask_dims = trt_decoder_->getBindingDimensions(7);
-    std::vector<int64_t> mask_shape = {point_labels_size_ / 2, mask_dims.d[1], mask_dims.d[2], mask_dims.d[3]};
-    const int64_t batch_size = mask_shape[0];
+    std::vector<int64_t> mask_shape = {current_batch_size, mask_dims.d[1], mask_dims.d[2], mask_dims.d[3]};
     const int64_t h = mask_shape[2], w = mask_shape[3];
 
-    result_masks.resize(batch_size);
+    result_masks.resize(current_batch_size);
 
+    // auto start_process = std::chrono::high_resolution_clock::now();
     #pragma omp parallel for
-    for (int i = 0; i < batch_size; i++) {
-        const float *mask_data_i = mask_data + i * h * w;
+    for (int i = 0; i < current_batch_size; i++) {
+        // 直接使用mask_data_i创建Mat,避免不必要的数据拷贝
+        cv::Mat mask_i(h, w, CV_32FC1, (void*)(mask_data + i * h * w));
         
-        // 先创建一个临时的float矩阵
-        std::vector<float> float_data(h * w);
-        for(int j = 0; j < h * w; j++) {
-            float_data[j] = float(mask_data_i[j]);
-        }
+        // 一次性完成resize和threshold操作
+        cv::Mat resized_mask;
+        cv::resize(mask_i, resized_mask, orig_im_size, 0, 0, cv::INTER_LINEAR);
         
-        // 使用float数据创建Mat
-        cv::Mat mask_i(h, w, CV_32FC1, float_data.data());
-        cv::resize(mask_i, mask_i, orig_im_size, cv::INTER_LINEAR);
-        // mask_i = mask_i > mask_threshold_;
-        cv::threshold(mask_i, mask_i, mask_threshold_, 255, cv::THRESH_BINARY);
-        mask_i.convertTo(mask_i, CV_8U); // 转换到可显示范围
-
-        // 线程安全地写入预分配位置
-        result_masks[i] = mask_i.clone();
+        // 直接转换为8位并二值化
+        cv::Mat binary_mask;
+        resized_mask = resized_mask > mask_threshold_;
+        resized_mask.convertTo(binary_mask, CV_8U, 255);
+        
+        result_masks[i] = binary_mask;
     }
+    // auto end_process = std::chrono::high_resolution_clock::now();
+    // auto duration_process = std::chrono::duration<double>(end_process - start_process);
+    // std::cout << "Process time: " << duration_process.count() << "s" << std::endl;
 }
 
 void SAM2ImageDecoder::ResetVariables()

@@ -25,7 +25,7 @@ public:
     void RunDecoder(const std::vector<std::vector<cv::Rect>> &boxes);
 
     // 解码掩码
-    void DecodeMask(const cv::Size &orig_im_size, const int img_batch_idx, std::vector<cv::Mat> &masks_per_image);
+    void DecodeMask(const cv::Size &orig_im_size, const int img_batch_idx, std::vector<cv::Mat> &masks_per_image, const int current_batch_size);
 
     // 获取生成的所有掩码
     const std::vector<std::vector<cv::Mat>> &GetMasks();
