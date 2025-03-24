@@ -124,32 +124,6 @@ void SAM2ImageDecoder::CalculateMemorySize(const int decoder_batch_limit, const 
     // output_confidence
     std::vector<int64_t> output_confidence_shape = {decoder_batch_limit};
     output_confidence_size_ = std::accumulate(output_confidence_shape.begin(), output_confidence_shape.end(), 1, std::multiplies<int>());
-
-
-    // set dynamic input dimensions
-    // normalized_coords
-    nvinfer1::Dims normalized_coords_dims;
-    normalized_coords_dims.nbDims = 3;
-    normalized_coords_dims.d[0] = normalized_coords_shape[0];
-    normalized_coords_dims.d[1] = normalized_coords_shape[1];
-    normalized_coords_dims.d[2] = normalized_coords_shape[2];
-    trt_decoder_->setBindingDimensions(3, normalized_coords_dims);
-    
-    // point_labels
-    nvinfer1::Dims point_labels_dims;
-    point_labels_dims.nbDims = 2;
-    point_labels_dims.d[0] = point_labels_shape[0];
-    point_labels_dims.d[1] = point_labels_shape[1];
-    trt_decoder_->setBindingDimensions(4, point_labels_dims);
-    
-    // mask_input
-    nvinfer1::Dims mask_input_dims;
-    mask_input_dims.nbDims = 4;
-    mask_input_dims.d[0] = mask_input_shape[0];
-    mask_input_dims.d[1] = mask_input_shape[1];
-    mask_input_dims.d[2] = mask_input_shape[2];
-    mask_input_dims.d[3] = mask_input_shape[3];
-    trt_decoder_->setBindingDimensions(5, mask_input_dims);
 }
 
 void SAM2ImageDecoder::PrepareInputs( const std::vector<std::vector<cv::Point2f>> &point_coords, const std::vector<std::vector<float>> &point_labels, const cv::Size &orig_im_size)
@@ -180,6 +154,34 @@ void SAM2ImageDecoder::PrepareInputs( const std::vector<std::vector<cv::Point2f>
 
     // has_mask_input
     has_mask_input_data[0] = 0.0f;  
+
+    // set dynamic input dimensions
+    // current batch size
+    int current_batch_size = point_coords.size();
+    // normalized_coords
+    std::vector<int64_t> normalized_coords_shape = {current_batch_size, 2, 2};
+    nvinfer1::Dims normalized_coords_dims;
+    normalized_coords_dims.nbDims = 3;
+    normalized_coords_dims.d[0] = normalized_coords_shape[0];
+    normalized_coords_dims.d[1] = normalized_coords_shape[1];
+    normalized_coords_dims.d[2] = normalized_coords_shape[2];
+    trt_decoder_->setBindingDimensions(3, normalized_coords_dims);
+    
+    // point_labels
+    nvinfer1::Dims point_labels_dims;
+    point_labels_dims.nbDims = 2;
+    point_labels_dims.d[0] = current_batch_size;
+    point_labels_dims.d[1] = 2;
+    trt_decoder_->setBindingDimensions(4, point_labels_dims);
+    
+    // mask_input
+    nvinfer1::Dims mask_input_dims;
+    mask_input_dims.nbDims = 4;
+    mask_input_dims.d[0] = current_batch_size;
+    mask_input_dims.d[1] = 1;
+    mask_input_dims.d[2] = encoder_input_size_.height / scale_factor;
+    mask_input_dims.d[3] = encoder_input_size_.width / scale_factor;
+    trt_decoder_->setBindingDimensions(5, mask_input_dims);
 }
 
 bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]> &image_embed, CudaUniquePtrHost<float[]> &high_res_feats_0, CudaUniquePtrHost<float[]> &high_res_feats_1,
