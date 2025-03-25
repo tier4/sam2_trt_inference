@@ -102,6 +102,16 @@ cv::Mat draw_masks(const cv::Mat &image, const std::vector<cv::Mat> &masks, floa
     return blended_image;
 }
 
+std::string replaceOtherString(const std::string &str, const std::string &old_str, const std::string &new_str) {
+    std::string result = str;
+    size_t start_pos = result.find(old_str);
+    if(start_pos == std::string::npos) {
+        return result; // 如果old_str不存在，返回原字符串
+    }
+    return result.replace(start_pos, old_str.length(), new_str);
+}
+
+
 //for debugging
 void saveHighDimensionalArrayToCSV(const char* filename, const float* arr, const int* shape, int dims) {
     int total_size = 1;

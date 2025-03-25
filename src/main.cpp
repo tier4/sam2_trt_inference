@@ -20,19 +20,10 @@ void process_image(std::string &encoder_path,
 {
     // 获取图片和bbox文件名
     std::vector<std::string> image_names;
-    std::vector<std::string> bbox_names;
-
 
     for (const auto& entry : std::filesystem::directory_iterator(img_path)) {
         image_names.push_back(entry.path().string());
     }
-    for (const auto& entry : std::filesystem::directory_iterator(bbox_file_path)) {
-        bbox_names.push_back(entry.path().string());
-    }
-
-    // std::sort(image_names.begin(), image_names.end());
-    // std::sort(bbox_names.begin(), bbox_names.end());
-    assert(image_names.size() == bbox_names.size());
 
     // 创建SAM2Image对象
     std::unique_ptr<SAM2Image> sam2;
@@ -50,8 +41,19 @@ void process_image(std::string &encoder_path,
         
         // 读取图片和bbox
         for (size_t j = 0; j < current_batch_size; j++) {
-            images_batch.push_back(cv::imread(image_names[i+j]));
-            std::vector<cv::Rect> box_coords = read_and_transform_coordinates(bbox_names[i+j]);
+            std::filesystem::path image_path = image_names[i+j];
+            std::string image_file_name = image_path.filename().string();
+            std::string bb_file_name;
+            if(image_file_name.find(".jpg") != std::string::npos) {
+                bb_file_name = replaceOtherString(image_file_name, ".jpg", ".txt");
+            } else if(image_file_name.find(".png") != std::string::npos) {
+                bb_file_name = replaceOtherString(image_file_name, ".png", ".txt");
+            }
+
+            // 读取图片和bbox
+            std::filesystem::path bb_file_path = std::filesystem::path(bbox_file_path) / bb_file_name;
+            images_batch.push_back(cv::imread(image_path.string()));
+            std::vector<cv::Rect> box_coords = read_and_transform_coordinates(bb_file_path.string());
             box_coords_batch.push_back(box_coords);
         }
 
