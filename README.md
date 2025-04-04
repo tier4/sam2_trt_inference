@@ -66,8 +66,15 @@ make
 Use the provided script to convert your SAM2 ONNX models to TensorRT format:
 
 ```bash
-./generate_trt.sh path/to/model.onnx path/to/output.engine
+./generate_decoder_trt.sh path/to/decoder.onnx path/to/decoder.engine [options]
 ```
+
+Options:
+- `--min-batch <N>`: Minimum batch size (default: 1)
+- `--opt-batch <N>`: Optimal batch size (default: 128)
+- `--max-batch <N>`: Maximum batch size (default: 200)
+- `--precision <fp16|fp32>`: Model precision (default: fp16)
+- `--workspace <size>`: Workspace size in MB (default: 4096)
 
 The script configures appropriate dynamic shapes for inputs and optimizes for your GPU.
 

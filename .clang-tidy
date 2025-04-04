@@ -1,0 +1,102 @@
+Checks: "
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-integer-division,
+  -bugprone-exception-escape,
+  -bugprone-reserved-identifier,
+  -bugprone-branch-clone,
+  -bugprone-narrowing-conversions,
+  readability-identifier-naming,
+  readability-braces-around-statements,
+  -cppcoreguidelines-*,
+  cppcoreguidelines-explicit-virtual-functions,
+  cppcoreguidelines-special-member-functions,
+  google-*,
+  -google-readability-todo,
+  -google-readability-function-size,
+  -google-readability-todo,
+  -google-readability-braces-around-statements,
+  -google-runtime-int,
+  -google-runtime-references,
+  -google-runtime-int,
+  -google-build-using-namespace,
+  -clang-analyzer-osx*,
+  -clang-analyzer-optin.cplusplus.UninitializedObject,
+  -clang-analyzer-optin.cplusplus.VirtualCall,
+  -clang-analyzer-core.NullDereference,
+  -clang-analyzer-cplusplus.NewDelete,
+  -clang-analyzer-cplusplus.PlacementNew,
+  -clang-analyzer-cplusplus.NewDeleteLeaks,
+  -clang-analyzer-cplusplus.Move,
+  -clang-diagnostic-unused-parameter,
+  performance-move-const-arg,
+  misc-const-correctness,
+  misc-definitions-in-headers,
+  misc-static-assert,
+  misc-use-anonymous-namespace,
+  -misc-unused-parameters"
+
+WarningsAsErrors: "*,-misc-non-private-member-variables-in-classes"
+FormatStyle: file
+HeaderFilterRegex: '^include/.*\\.hpp$' # Only check header files in `include` directory
+
+CheckOptions:
+  # Please refer here to get more information about readability-identifier-naming
+  # https://clang.llvm.org/extra/clang-tidy/checks/readability/identifier-naming.html#readability-identifier-naming
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantPrefix
+    value: "k"
+  - key: readability-identifier-naming.FunctionCase
+    value: CamelCase
+  - key: readability-identifier-naming.PublicMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: _
+  - key: readability-identifier-naming.ProtectedMethodCase
+    value: lower_case
+  - key: readability-identifier-naming.ProtectedMethodSuffix
+    value: _
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key: readability-identifier-naming.UnionCase
+    value: CamelCase
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.GlobalVariableCase
+    value: lower_case
+  - key: readability-identifier-naming.GlobalVariablePrefix
+    value: "g_"
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: CamelCase
+  - key: readability-identifier-naming.ConstexprVariablePrefix
+    value: "k"
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.GlobalConstantPrefix
+    value: "k"
+  - key: readability-identifier-naming.TemplateParameterCase
+    value: CamelCase
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 2 # Ensures braces {} are used even for short statements if they span more than 2 lines
+  - key: readability-identifier-naming.FunctionIgnoredRegexp
+    value: "(TEST|TEST_F|TEST_P|INSTANTIATE_TEST_SUITE_P|MOCK_METHOD|TYPED_TEST)" # Ignore GoogleTest function macros
+  - key: performance-move-const-arg.CheckTriviallyCopyableMove
+    value: 0 # Disables warnings for unnecessary std::move on trivially copyable types.
+  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: 1 # Allows defining only a default destructor without explicitly declaring other special member functions.
+  - key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions
+    value: 1 # Allows missing move constructor and move assignment operator.
+  - key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted
+    value: 1 # Allows missing move functions if copy functions are explicitly deleted.
