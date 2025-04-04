@@ -42,9 +42,9 @@ void ProcessImage(std::string &encoder_path, std::string &decoder_path,
       std::string image_file_name = image_path.filename().string();
       std::string bb_file_name;
       if (image_file_name.find(".jpg") != std::string::npos) {
-        bb_file_name = replaceOtherString(image_file_name, ".jpg", ".txt");
+        bb_file_name = ReplaceOtherString(image_file_name, ".jpg", ".txt");
       } else if (image_file_name.find(".png") != std::string::npos) {
-        bb_file_name = replaceOtherString(image_file_name, ".png", ".txt");
+        bb_file_name = ReplaceOtherString(image_file_name, ".png", ".txt");
       }
 
       // 读取图片和bbox
@@ -52,7 +52,7 @@ void ProcessImage(std::string &encoder_path, std::string &decoder_path,
           std::filesystem::path(bbox_file_path) / bb_file_name;
       images_batch.push_back(cv::imread(image_path.string()));
       std::vector<cv::Rect> box_coords =
-          read_and_transform_coordinates(bb_file_path.string());
+          ReadAndTransformCoordinates(bb_file_path.string());
       box_coords_batch.push_back(box_coords);
     }
 
@@ -70,7 +70,7 @@ void ProcessImage(std::string &encoder_path, std::string &decoder_path,
 
     auto start_draw = std::chrono::high_resolution_clock::now();
     for (size_t j = 0; j < current_batch_size; j++) {
-      cv::Mat masked_img = draw_masks(images_batch[j], masks[j]);
+      cv::Mat masked_img = DrawMasks(images_batch[j], masks[j]);
       cv::imwrite(output_jpg_path + "_" + std::to_string(i + j) + ".jpg",
                   masked_img);
     }

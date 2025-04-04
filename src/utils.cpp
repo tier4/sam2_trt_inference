@@ -1,9 +1,13 @@
 #include "utils.hpp"
 #include "omp.h"
+#include <fstream>
+#include <iostream>
+#include <random>
+#include <sstream>
 
 // 读取并转换坐标
 std::vector<cv::Rect>
-read_and_transform_coordinates(const std::string &file_path) {
+ReadAndTransformCoordinates(const std::string &file_path) {
   std::vector<cv::Rect> box_coords; // 存储所有的矩形
   std::ifstream file(file_path);    // 打开文件
 
@@ -47,7 +51,7 @@ read_and_transform_coordinates(const std::string &file_path) {
 }
 
 // 生成随机颜色
-std::vector<cv::Scalar> generate_random_colors(int num_colors, int seed) {
+std::vector<cv::Scalar> GenerateRandomColors(int num_colors, int seed) {
   std::vector<cv::Scalar> colors;
   std::mt19937 rng(seed);
   std::uniform_real_distribution<> dist(0, 255);
@@ -60,8 +64,8 @@ std::vector<cv::Scalar> generate_random_colors(int num_colors, int seed) {
 }
 
 // 绘制单个遮罩并添加边界
-void draw_mask(cv::Mat &image, const cv::Mat &mask, const cv::Scalar &color,
-               float alpha, bool draw_border) {
+void DrawMask(cv::Mat &image, const cv::Mat &mask, const cv::Scalar &color,
+              float alpha, bool draw_border) {
   image.setTo(color, mask); // 黑色背景
 
   // 绘制轮廓
@@ -73,12 +77,12 @@ void draw_mask(cv::Mat &image, const cv::Mat &mask, const cv::Scalar &color,
 }
 
 // 绘制多个遮罩
-cv::Mat draw_masks(const cv::Mat &image, const std::vector<cv::Mat> &masks,
-                   float alpha, bool draw_border) {
+cv::Mat DrawMasks(const cv::Mat &image, const std::vector<cv::Mat> &masks,
+                  float alpha, bool draw_border) {
   cv::Mat mask_image = image.clone(); // 复制图像
 
   // 生成随机颜色
-  auto colors = generate_random_colors(200, 42);
+  auto colors = GenerateRandomColors(200, 42);
 
 #pragma omp parallel for
   for (size_t i = 0; i < masks.size(); i++) {
@@ -86,7 +90,7 @@ cv::Mat draw_masks(const cv::Mat &image, const std::vector<cv::Mat> &masks,
       continue;
 
     cv::Scalar color = colors[i % colors.size()];
-    draw_mask(mask_image, masks[i], color, alpha, draw_border);
+    DrawMask(mask_image, masks[i], color, alpha, draw_border);
   }
   cv::Mat blended_image;
   cv::addWeighted(image, 1 - alpha, mask_image, alpha, 0,
@@ -94,7 +98,7 @@ cv::Mat draw_masks(const cv::Mat &image, const std::vector<cv::Mat> &masks,
   return blended_image;
 }
 
-std::string replaceOtherString(const std::string &str,
+std::string ReplaceOtherString(const std::string &str,
                                const std::string &old_str,
                                const std::string &new_str) {
   std::string result = str;
@@ -106,7 +110,7 @@ std::string replaceOtherString(const std::string &str,
 }
 
 // for debugging
-void saveHighDimensionalArrayToCSV(const char *filename, const float *arr,
+void SaveHighDimensionalArrayToCSV(const char *filename, const float *arr,
                                    const int *shape, int dims) {
   int total_size = 1;
   for (int i = 0; i < dims; ++i) {
@@ -126,7 +130,7 @@ void saveHighDimensionalArrayToCSV(const char *filename, const float *arr,
 }
 
 // 函数：保存 cv::Mat 到 CSV 文件
-void saveMatToCSV(const cv::Mat &matrix, const std::string &filename) {
+void SaveMatToCSV(const cv::Mat &matrix, const std::string &filename) {
   // 打开输出文件
   std::ofstream file(filename);
   if (!file.is_open()) {
@@ -152,7 +156,7 @@ void saveMatToCSV(const cv::Mat &matrix, const std::string &filename) {
 }
 
 // 保存 cv::Mat 到二进制文件
-void saveBlobToBinary(const cv::Mat &blob, const std::string &filename) {
+void SaveBlobToBinary(const cv::Mat &blob, const std::string &filename) {
   // 打开二进制文件
   std::ofstream file(filename, std::ios::binary);
   if (!file.is_open()) {
