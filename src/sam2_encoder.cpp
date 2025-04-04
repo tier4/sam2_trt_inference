@@ -10,7 +10,7 @@ SAM2ImageEncoder::SAM2ImageEncoder(
     const tensorrt_common::BatchConfig &batch_config,
     const size_t max_workspace_size,
     const tensorrt_common::BuildConfig build_config)
-    : encoder_precision_(engine_precision) {
+    : encoder_precision(engine_precision) {
   trt_encoder_ = std::make_unique<tensorrt_common::TrtCommon>(
       onnx_path, engine_precision, nullptr, batch_config, max_workspace_size,
       build_config);
@@ -25,12 +25,12 @@ SAM2ImageEncoder::SAM2ImageEncoder(
   GetInputDetails();
   GetOutputDetails();
 
-  allocateGpuMemory();
+  AllocateGpuMemory();
 }
 
 SAM2ImageEncoder::~SAM2ImageEncoder() {}
 
-void SAM2ImageEncoder::allocateGpuMemory() {
+void SAM2ImageEncoder::AllocateGpuMemory() {
   const auto input_dims = trt_encoder_->getBindingDimensions(0);
   const auto embed_dims = trt_encoder_->getBindingDimensions(1);
   const auto feats_1_dims = trt_encoder_->getBindingDimensions(2);
@@ -39,29 +39,29 @@ void SAM2ImageEncoder::allocateGpuMemory() {
   const auto input_size =
       std::accumulate(input_dims.d + 1, input_dims.d + input_dims.nbDims, 1,
                       std::multiplies<int>());
-  feats_0_size_ =
+  feats_0_size =
       std::accumulate(feats_0_dims.d + 1, feats_0_dims.d + feats_0_dims.nbDims,
                       1, std::multiplies<int>());
-  feats_1_size_ =
+  feats_1_size =
       std::accumulate(feats_1_dims.d + 1, feats_1_dims.d + feats_1_dims.nbDims,
                       1, std::multiplies<int>());
-  embed_size_ =
+  embed_size =
       std::accumulate(embed_dims.d + 1, embed_dims.d + embed_dims.nbDims, 1,
                       std::multiplies<int>());
 
   // CPU part
-  feats_0_data = cuda_utils::make_unique_host<float[]>(feats_0_size_,
+  feats_0_data = cuda_utils::make_unique_host<float[]>(feats_0_size,
                                                        cudaHostAllocPortable);
-  feats_1_data = cuda_utils::make_unique_host<float[]>(feats_1_size_,
+  feats_1_data = cuda_utils::make_unique_host<float[]>(feats_1_size,
                                                        cudaHostAllocPortable);
   embed_data =
-      cuda_utils::make_unique_host<float[]>(embed_size_, cudaHostAllocPortable);
+      cuda_utils::make_unique_host<float[]>(embed_size, cudaHostAllocPortable);
 
   // GPU part
   input_d_ = cuda_utils::make_unique<float[]>(input_size);
-  feats_0_data_d_ = cuda_utils::make_unique<float[]>(feats_0_size_);
-  feats_1_data_d_ = cuda_utils::make_unique<float[]>(feats_1_size_);
-  embed_data_d_ = cuda_utils::make_unique<float[]>(embed_size_);
+  feats_0_data_d_ = cuda_utils::make_unique<float[]>(feats_0_size);
+  feats_1_data_d_ = cuda_utils::make_unique<float[]>(feats_1_size);
+  embed_data_d_ = cuda_utils::make_unique<float[]>(embed_size);
 }
 
 void SAM2ImageEncoder::EncodeImage(const std::vector<cv::Mat> &images) {
@@ -76,9 +76,9 @@ void SAM2ImageEncoder::EncodeImage(const std::vector<cv::Mat> &images) {
 
 void SAM2ImageEncoder::GetInputDetails() {
   const auto input_dims = trt_encoder_->getBindingDimensions(0);
-  batch_size_ = input_dims.d[0];
-  input_height_ = input_dims.d[2];
-  input_width_ = input_dims.d[3];
+  batch_size = input_dims.d[0];
+  input_height = input_dims.d[2];
+  input_width = input_dims.d[3];
 }
 
 void SAM2ImageEncoder::GetOutputDetails() {}
@@ -89,19 +89,19 @@ cv::Mat SAM2ImageEncoder::PrepareInput(const std::vector<cv::Mat> &images) {
   std::vector<float> std{0.229f, 0.224f, 0.225f}; // RGB 标准差
 
   int num_images = images.size();
-  assert(num_images <= batch_size_);
+  assert(num_images <= batch_size);
 
   // mean, normalize to 0~1, to NCHW
   cv::Mat normalized_images = cv::dnn::blobFromImages(
-      images, 1.0 / 255.0, cv::Size(input_width_, input_height_), mean, true,
+      images, 1.0 / 255.0, cv::Size(input_width, input_height), mean, true,
       false, CV_32F);
   // normalize std
   auto ptr = normalized_images.ptr<float>();
   for (int n = 0; n < num_images; ++n) {
-    auto bias_batch = n * 3 * input_height_ * input_width_;
+    auto bias_batch = n * 3 * input_height * input_width;
     for (int i = 0; i < 3; i++) {
-      auto bias_channel = i * input_height_ * input_width_;
-      for (int j = 0; j < input_height_ * input_width_; ++j) {
+      auto bias_channel = i * input_height * input_width;
+      for (int j = 0; j < input_height * input_width; ++j) {
         ptr[bias_batch + bias_channel + j] /= std[i];
       }
     }
@@ -140,13 +140,13 @@ bool SAM2ImageEncoder::Infer(const cv::Mat &input_tensor) {
 
   // copy output to CPU
   CHECK_CUDA_ERROR(cudaMemcpyAsync(feats_0_data.get(), feats_0_data_d_.get(),
-                                   feats_0_size_ * sizeof(float),
+                                   feats_0_size * sizeof(float),
                                    cudaMemcpyDeviceToHost, *stream_));
   CHECK_CUDA_ERROR(cudaMemcpyAsync(feats_1_data.get(), feats_1_data_d_.get(),
-                                   feats_1_size_ * sizeof(float),
+                                   feats_1_size * sizeof(float),
                                    cudaMemcpyDeviceToHost, *stream_));
   CHECK_CUDA_ERROR(cudaMemcpyAsync(embed_data.get(), embed_data_d_.get(),
-                                   embed_size_ * sizeof(float),
+                                   embed_size * sizeof(float),
                                    cudaMemcpyDeviceToHost, *stream_));
 
   // synchronize
