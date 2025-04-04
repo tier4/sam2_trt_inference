@@ -1,9 +1,9 @@
+#include "sam2_decoder.hpp"
 #include "omp.h"
+#include <numeric>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
-
-#include "sam2_decoder.hpp"
 
 SAM2ImageDecoder::SAM2ImageDecoder(
     const std::string &onnx_path, const std::string &engine_precision,
@@ -13,26 +13,26 @@ SAM2ImageDecoder::SAM2ImageDecoder(
     const cv::Size &encoder_input_size,
     const std::vector<int> &encoder_output_sizes, float mask_threshold)
     : encoder_input_size_(encoder_input_size), mask_threshold_(mask_threshold) {
-  trt_decoder_ = std::make_unique<tensorrt_common::TrtCommon>(
+  trt_decoder = std::make_unique<tensorrt_common::TrtCommon>(
       onnx_path, engine_precision, nullptr, batch_config, max_workspace_size,
       build_config);
 
-  trt_decoder_->setup();
+  trt_decoder->setup();
 
-  if (!trt_decoder_->isInitialized()) {
+  if (!trt_decoder->isInitialized()) {
     throw std::runtime_error("Failed to initialize TRT decoder");
     return;
   }
 
   CalculateMemorySize(batch_config[2], encoder_output_sizes[0],
                       encoder_output_sizes[1], encoder_output_sizes[2]);
-  allocateGpuMemory();
+  AllocateGpuMemory();
   GetInputOutputDetails();
 }
 
 SAM2ImageDecoder::~SAM2ImageDecoder() {}
 
-void SAM2ImageDecoder::allocateGpuMemory() {
+void SAM2ImageDecoder::AllocateGpuMemory() {
   // CPU part
   normalized_coords_data = cuda_utils::make_unique_host<float[]>(
       normalized_coords_size_, cudaHostAllocPortable);
@@ -87,8 +87,8 @@ void SAM2ImageDecoder::Predict(
 }
 
 void SAM2ImageDecoder::GetInputOutputDetails() {
-  for (int i = 0; i < trt_decoder_->getNbBindings(); i++) {
-    auto dims = trt_decoder_->getBindingDimensions(i);
+  for (int i = 0; i < trt_decoder->getNbBindings(); i++) {
+    auto dims = trt_decoder->getBindingDimensions(i);
     std::vector<int64_t> shape;
     for (int j = 0; j < dims.nbDims; j++) {
       shape.push_back(dims.d[j]);
@@ -117,8 +117,8 @@ void SAM2ImageDecoder::CalculateMemorySize(const int decoder_batch_limit,
                       std::multiplies<int>());
 
   // mask_input
-  int scaled_height = encoder_input_size_.height / scale_factor;
-  int scaled_width = encoder_input_size_.width / scale_factor;
+  int scaled_height = encoder_input_size_.height / scale_factor_;
+  int scaled_width = encoder_input_size_.width / scale_factor_;
   std::vector<int64_t> mask_input_shape = {decoder_batch_limit, 1,
                                            scaled_height, scaled_width};
   mask_input_size_ =
@@ -187,23 +187,23 @@ void SAM2ImageDecoder::PrepareInputs(
   normalized_coords_dims.d[0] = normalized_coords_shape[0];
   normalized_coords_dims.d[1] = normalized_coords_shape[1];
   normalized_coords_dims.d[2] = normalized_coords_shape[2];
-  trt_decoder_->setBindingDimensions(3, normalized_coords_dims);
+  trt_decoder->setBindingDimensions(3, normalized_coords_dims);
 
   // point_labels
   nvinfer1::Dims point_labels_dims;
   point_labels_dims.nbDims = 2;
   point_labels_dims.d[0] = current_batch_size;
   point_labels_dims.d[1] = 2;
-  trt_decoder_->setBindingDimensions(4, point_labels_dims);
+  trt_decoder->setBindingDimensions(4, point_labels_dims);
 
   // mask_input
   nvinfer1::Dims mask_input_dims;
   mask_input_dims.nbDims = 4;
   mask_input_dims.d[0] = current_batch_size;
   mask_input_dims.d[1] = 1;
-  mask_input_dims.d[2] = encoder_input_size_.height / scale_factor;
-  mask_input_dims.d[3] = encoder_input_size_.width / scale_factor;
-  trt_decoder_->setBindingDimensions(5, mask_input_dims);
+  mask_input_dims.d[2] = encoder_input_size_.height / scale_factor_;
+  mask_input_dims.d[3] = encoder_input_size_.width / scale_factor_;
+  trt_decoder->setBindingDimensions(5, mask_input_dims);
 }
 
 bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]> &image_embed,
@@ -250,7 +250,7 @@ bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]> &image_embed,
       output_confidence_data_d_.get()};
 
   // 执行推理
-  bool success = trt_decoder_->enqueueV2(buffers.data(), *stream_, nullptr);
+  bool success = trt_decoder->enqueueV2(buffers.data(), *stream_, nullptr);
   if (!success) {
     throw std::runtime_error("Failed to execute inference");
     return false;
@@ -271,7 +271,7 @@ bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]> &image_embed,
 void SAM2ImageDecoder::ProcessOutput(const cv::Size &orig_im_size,
                                      const int current_batch_size) {
   const float *mask_data = output_mask_data.get();
-  auto mask_dims = trt_decoder_->getBindingDimensions(7);
+  auto mask_dims = trt_decoder->getBindingDimensions(7);
   std::vector<int64_t> mask_shape = {current_batch_size, mask_dims.d[1],
                                      mask_dims.d[2], mask_dims.d[3]};
   const int64_t h = mask_shape[2], w = mask_shape[3];
