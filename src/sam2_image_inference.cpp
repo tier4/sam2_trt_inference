@@ -26,7 +26,7 @@ SAM2Image::SAM2Image(const std::string &encoder_path,
       encoder_path, model_precision, batch_config_encoder, max_workspace_size,
       build_config_encoder);
   std::vector<int> encoder_output_sizes = {
-      encoder_->embed_size_, encoder_->feats_0_size_, encoder_->feats_1_size_};
+      encoder_->embed_size, encoder_->feats_0_size, encoder_->feats_1_size};
   decoder_ = std::make_unique<SAM2ImageDecoder>(
       decoder_path, model_precision, batch_config_decoder, max_workspace_size,
       build_config_decoder, encoder_input_size, encoder_output_sizes);
