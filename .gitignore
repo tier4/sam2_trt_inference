@@ -33,6 +33,7 @@
 
 
 #
+.cache/
 /build
 /models
 /test_images
