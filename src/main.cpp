@@ -1,3 +1,12 @@
+/**
+ * @file main.cpp
+ * @brief Main entry point for SAM2 TensorRT inference
+ * 
+ * Copyright (c) 2024 TIERIV
+ * Author: Hunter Cheng (haoxuan.cheng@tier4.jp)
+ * Created: 2025.4
+ */
+
 #include "argparse/argparse.hpp" // Ensure you have the argparse library in your include path
 #include <chrono>
 #include <filesystem>
@@ -12,17 +21,16 @@ void ProcessImage(std::string &encoder_path, std::string &decoder_path,
                   std::string &img_path, std::string &bbox_file_path,
                   std::string &output_jpg_path, std::string &precision,
                   const size_t batch_size, const int decoder_batch_limit) {
-  // 获取图片和bbox文件名
+  // Get image and bbox filenames
   std::vector<std::string> image_names;
 
   for (const auto &entry : std::filesystem::directory_iterator(img_path)) {
     image_names.push_back(entry.path().string());
   }
 
-  // 创建SAM2Image对象
+  // Create SAM2Image object
   std::unique_ptr<SAM2Image> sam2;
-  cv::Size encoder_input_size(
-      1024, 1024); // 当前的encoder的输入尺寸，关系到decoder中的normalization
+  cv::Size encoder_input_size(1024, 1024); // Current encoder input size, affects decoder normalization
   sam2 = std::make_unique<SAM2Image>(encoder_path, decoder_path,
                                      encoder_input_size, precision,
                                      decoder_batch_limit);
@@ -33,10 +41,10 @@ void ProcessImage(std::string &encoder_path, std::string &decoder_path,
 
     std::vector<cv::Mat> images_batch;
     std::vector<std::vector<cv::Rect>> box_coords_batch;
-    // 计算当前批次的实际大小
+    // Calculate actual batch size for this iteration
     size_t current_batch_size = std::min(batch_size, image_names.size() - i);
 
-    // 读取图片和bbox
+    // Read images and bounding boxes
     for (size_t j = 0; j < current_batch_size; j++) {
       std::filesystem::path image_path = image_names[i + j];
       std::string image_file_name = image_path.filename().string();
@@ -47,7 +55,7 @@ void ProcessImage(std::string &encoder_path, std::string &decoder_path,
         bb_file_name = replaceOtherString(image_file_name, ".png", ".txt");
       }
 
-      // 读取图片和bbox
+      // Read image and bounding box
       std::filesystem::path bb_file_path =
           std::filesystem::path(bbox_file_path) / bb_file_name;
       images_batch.push_back(cv::imread(image_path.string()));
@@ -56,12 +64,12 @@ void ProcessImage(std::string &encoder_path, std::string &decoder_path,
       box_coords_batch.push_back(box_coords);
     }
 
-    // 运行encoder
+    // Run encoder
     auto start_encoder = std::chrono::high_resolution_clock::now();
     sam2->RunEncoder(images_batch);
     auto end_encoder = std::chrono::high_resolution_clock::now();
 
-    // 运行decoder
+    // Run decoder
     auto start_decoder = std::chrono::high_resolution_clock::now();
     sam2->RunDecoder(box_coords_batch);
     auto end_decoder = std::chrono::high_resolution_clock::now();
@@ -84,7 +92,8 @@ void ProcessImage(std::string &encoder_path, std::string &decoder_path,
         std::chrono::duration<double>(end_decoder - start_decoder);
     std::cout << "Decoder time: " << duration_decoder.count() << "s"
               << std::endl;
-    auto duration_draw = std::chrono::duration<double>(end_draw - start_draw);
+    auto duration_draw =
+        std::chrono::duration<double>(end_draw - start_draw);
     std::cout << "Draw time: " << duration_draw.count() << "s" << std::endl;
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -97,7 +106,7 @@ void ProcessImage(std::string &encoder_path, std::string &decoder_path,
 int main(int argc, char **argv) {
   argparse::ArgumentParser program("sam2_ort_cpp");
 
-  // 定义位置参数
+  // Define positional arguments
   program.add_argument("encoder_path")
       .help("Path to the encoder ONNX model file");
 
@@ -113,7 +122,7 @@ int main(int argc, char **argv) {
   program.add_argument("output_folder_path")
       .help("Path to folder for saving the output image file");
 
-  // 定义可选参数
+  // Define optional arguments
   program.add_argument("--precision")
       .help("Model precision (e.g., fp32 or fp16)")
       .default_value(std::string("fp32"));
@@ -131,7 +140,7 @@ int main(int argc, char **argv) {
   try {
     program.parse_args(argc, argv);
 
-    // 获取参数
+    // Get arguments
     std::string encoder_path = program.get<std::string>("encoder_path");
     std::string decoder_path = program.get<std::string>("decoder_path");
     std::string img_path = program.get<std::string>("img_folder_path");

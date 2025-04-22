@@ -1,3 +1,12 @@
+/**
+ * @file sam2_encoder.cpp
+ * @brief Implementation of SAM2 encoder using TensorRT
+ * 
+ * Copyright (c) 2024 TIERIV
+ * Author: Hunter Cheng (haoxuan.cheng@tier4.jp)
+ * Created: 2025.4
+ */
+
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <vector>
@@ -88,19 +97,20 @@ void SAM2ImageEncoder::GetOutputDetails()
 {
 }
 
-
-// waiting for cuda accel
 cv::Mat SAM2ImageEncoder::PrepareInput(const std::vector<cv::Mat> &images)
 {
-    cv::Scalar mean(123.675, 116.28, 103.53); // RGB 均值
-    std::vector<float> std{0.229f, 0.224f, 0.225f};  // RGB 标准差
+    // RGB mean values
+    cv::Scalar mean(123.675, 116.28, 103.53);
+    // RGB standard deviation values
+    std::vector<float> std{0.229f, 0.224f, 0.225f};
 
     int num_images = images.size();
     assert(num_images <= batch_size_);
 
-    // mean, normalize to 0~1, to NCHW
+    // Normalize images: subtract mean, scale to 0~1, convert to NCHW format
     cv::Mat normalized_images = cv::dnn::blobFromImages(images, 1.0 / 255.0, cv::Size(input_width_, input_height_), mean, true, false, CV_32F);
-    // normalize std    
+    
+    // Normalize by standard deviation
     auto ptr = normalized_images.ptr<float>();
     for(int n = 0;n < num_images; ++n)
     {
@@ -114,18 +124,18 @@ cv::Mat SAM2ImageEncoder::PrepareInput(const std::vector<cv::Mat> &images)
             }
         }
     }
-    // normalized_images.convertTo(normalized_images, CV_16F);
     return normalized_images;
 }
 
 bool SAM2ImageEncoder::Infer(const cv::Mat &input_tensor)
 {
-    // If the data is continuous, we can use it directly. Otherwise, we need to clone it for contiguous memory.
+    // Ensure contiguous memory for input tensor
     auto input_tensor_ = input_tensor.isContinuous() ? input_tensor.reshape(1, input_tensor.total()) : input_tensor.reshape(1, input_tensor.total()).clone();
-    // copy input to GPU
+    
+    // Copy input to GPU
     CHECK_CUDA_ERROR(cudaMemcpyAsync(input_d_.get(), input_tensor_.ptr<float>(), input_tensor_.total() * sizeof(float), cudaMemcpyHostToDevice, *stream_));
 
-    //prepare GPU buffers
+    // Prepare GPU buffers
     std::vector<void *> buffers = {
                                     input_d_.get(), 
                                     embed_data_d_.get(),
@@ -133,7 +143,7 @@ bool SAM2ImageEncoder::Infer(const cv::Mat &input_tensor)
                                     feats_0_data_d_.get(),
                                     };
 
-    // execute inference
+    // Execute inference
     bool success = trt_encoder_->enqueueV2(buffers.data(), *stream_, nullptr);
     if(!success)
     {
@@ -141,12 +151,12 @@ bool SAM2ImageEncoder::Infer(const cv::Mat &input_tensor)
         return false;
     }
 
-    // copy output to CPU
+    // Copy output to CPU
     CHECK_CUDA_ERROR(cudaMemcpyAsync(feats_0_data.get(), feats_0_data_d_.get(), feats_0_size_ * sizeof(float), cudaMemcpyDeviceToHost, *stream_));
     CHECK_CUDA_ERROR(cudaMemcpyAsync(feats_1_data.get(), feats_1_data_d_.get(), feats_1_size_ * sizeof(float), cudaMemcpyDeviceToHost, *stream_));
     CHECK_CUDA_ERROR(cudaMemcpyAsync(embed_data.get(), embed_data_d_.get(), embed_size_ * sizeof(float), cudaMemcpyDeviceToHost, *stream_));
     
-    // synchronize
+    // Synchronize CUDA stream
     CHECK_CUDA_ERROR(cudaStreamSynchronize(*stream_));
     
     return true;
