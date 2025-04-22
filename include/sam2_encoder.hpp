@@ -1,3 +1,12 @@
+/**
+ * @file sam2_encoder.hpp
+ * @brief SAM2 encoder implementation using TensorRT
+ * 
+ * Copyright (c) 2024 TIERIV
+ * Author: Hunter Cheng (haoxuan.cheng@tier4.jp)
+ * Created: 2025.4
+ */
+
 #pragma once
 
 #include <opencv2/opencv.hpp>
@@ -16,7 +25,7 @@ using cuda_utils::StreamUniquePtr;
 class SAM2ImageEncoder
 {
 public:
-    // 构造函数
+    // Constructor
     SAM2ImageEncoder(const std::string &onnx_path, 
                     const std::string &engine_precision,
                     const tensorrt_common::BatchConfig &batch_config,
@@ -25,44 +34,44 @@ public:
 
     ~SAM2ImageEncoder();
 
-    // 对图像进行编码
+    // Encode images
     void EncodeImage(const std::vector<cv::Mat> &images);
 
-    // 编码后的高分辨率特征
+    // High-resolution features after encoding
     CudaUniquePtrHost<float[]> feats_0_data;
     CudaUniquePtrHost<float[]> feats_1_data;
     CudaUniquePtrHost<float[]> embed_data;
 
-    // 输入的宽高
+    // Input dimensions
     int input_height_;
     int input_width_;
 
-    // 模型的精度（fp16 或 fp32）
+    // Model precision (fp16 or fp32)
     std::string encoder_precision_;
 
-    // 批处理大小
+    // Batch size
     int batch_size_;
     int feats_0_size_;
     int feats_1_size_;
     int embed_size_;
 
 private:
-    // 分配 GPU 内存
+    // Allocate GPU memory
     void allocateGpuMemory();
 
-    // 从 ONNX 模型获取输入的详细信息
+    // Get input details from ONNX model
     void GetInputDetails();
 
-    // 从 ONNX 模型获取输出的详细信息
+    // Get output details from ONNX model
     void GetOutputDetails();
 
-    // 准备输入张量
+    // Prepare input tensor
     cv::Mat PrepareInput(const std::vector<cv::Mat> &images);
 
-    // 执行推理
+    // Execute inference
     bool Infer(const cv::Mat &input_tensor);
 
-    // 处理推理输出
+    // Process inference output
     void ProcessOutput();
 
     std::unique_ptr<tensorrt_common::TrtCommon> trt_encoder_;
