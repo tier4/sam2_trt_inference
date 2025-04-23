@@ -23,7 +23,6 @@ void ProcessImage(std::string& encoder_path,
                   std::string& bbox_file_path,
                   std::string& output_jpg_path,
                   std::string& precision,
-                  const size_t batch_size,
                   const int decoder_batch_limit)
 {
     // Get image and bbox filenames
@@ -41,6 +40,7 @@ void ProcessImage(std::string& encoder_path,
     sam2 = std::make_unique<SAM2Image>(
         encoder_path, decoder_path, encoder_input_size, precision, decoder_batch_limit);
 
+    const size_t batch_size = 1;
     for (size_t i = 0; i < image_names.size(); i += batch_size)
     {
         auto start = std::chrono::high_resolution_clock::now();
@@ -128,11 +128,6 @@ int main(int argc, char** argv)
         .help("Model precision (e.g., fp32 or fp16)")
         .default_value(std::string("fp32"));
 
-    program.add_argument("--batch_size")
-        .help("Batch size")
-        .default_value(static_cast<size_t>(1))
-        .scan<'i', size_t>();
-
     program.add_argument("--decoder_batch_limit")
         .help("Decoder batch limit")
         .default_value(static_cast<int>(50))
@@ -149,7 +144,6 @@ int main(int argc, char** argv)
         std::string bbox_file_path = program.get<std::string>("bbox_file_folder_path");
         std::string output_jpg_path = program.get<std::string>("output_folder_path");
         std::string precision = program.get<std::string>("--precision");
-        size_t batch_size = program.get<size_t>("--batch_size");
         int decoder_batch_limit = program.get<int>("--decoder_batch_limit");
 
         ProcessImage(encoder_path,
@@ -158,7 +152,6 @@ int main(int argc, char** argv)
                      bbox_file_path,
                      output_jpg_path,
                      precision,
-                     batch_size,
                      decoder_batch_limit);
     }
     catch (const std::exception& err)
