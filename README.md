@@ -63,9 +63,7 @@ make
 
 ### Convert models from pytorch to onnx
 
-```bash
-waiting for development
-```
+Refer to this [repo](https://github.com/tier4/sam2_pytorch2onnx) for converting onnx models
 
 ### Running Inference with pre-generated TensorRT engine
 
