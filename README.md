@@ -61,12 +61,19 @@ make
 
 ## Usage
 
+### Convert models from pytorch to onnx
+
+```bash
+waiting for development
+```
+
 ### Running Inference with pre-generated TensorRT engine
 
 Use the provided script to convert your SAM2 ONNX models to TensorRT format:
 
 ```bash
-./generate_decoder_trt.sh path/to/decoder.onnx path/to/decoder.engine [options]
+bash tools/generate_encoder_trt.sh path/to/encoder.onnx path/to/encoder.engine [options]
+bash tools/generate_decoder_trt.sh path/to/decoder.onnx path/to/decoder.engine [options]
 ```
 
 Options:
@@ -76,7 +83,7 @@ Options:
 - `--precision <fp16|fp32>`: Model precision (default: fp16)
 - `--workspace <size>`: Workspace size in MB (default: 4096)
 
-The script configures appropriate dynamic shapes for inputs and optimizes for your GPU.
+The encoder model uses a fixed batch size of 1, while the decoder model's batch size is dynamically configured based on your GPU capabilities and memory constraints.
 
 ```bash
 ./MyTRTSAM2App encoder.engine decoder.engine images_folder/ bboxes_folder/ output_folder/ [options]
@@ -87,10 +94,6 @@ The script configures appropriate dynamic shapes for inputs and optimizes for yo
 ```bash
 ./MyTRTSAM2App encoder.onnx decoder.onnx images_folder/ bboxes_folder/ output_folder/ [options]
 ```
-
-
-
-
 
 #### Command Line Arguments
 
@@ -103,7 +106,6 @@ The script configures appropriate dynamic shapes for inputs and optimizes for yo
 #### Options
 
 - `--precision <fp16|fp32>`: Model precision (default: fp32)
-- `--batch_size <N>`: Number of images to process in one batch (default: 1)
 - `--decoder_batch_limit <N>`: Maximum batch size for decoder (default: 50)
 
 ### Input Format
@@ -112,7 +114,6 @@ The bounding box files should be in a text format with each line containing:
 ```
 class_id confidence x_min y_min x_max y_max
 ```
-see `sample_data/bboxes/00105.txt` for reference
 
 ## Architecture
 
@@ -140,6 +141,7 @@ see `sample_data/bboxes/00105.txt` for reference
 - [SAM2 Paper and Original Implementation](https://github.com/facebookresearch/sam2)
 - NVIDIA for TensorRT
 - OpenCV community
+- [argparse](https://github.com/p-ranav/argparse)
 
 ## Contributing
 
