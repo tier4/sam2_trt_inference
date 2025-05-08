@@ -1,6 +1,7 @@
 # SAM2 TensorRT C++ Inference
 
 A high-performance TensorRT inference framework for Segment Anything Model 2 (SAM2) implemented in C++, with tools for model conversion from ONNX to TensorRT engine.
+![SAM2 TensorRT C++ Inference](demo.png)
 
 ## Features
 
@@ -130,9 +131,31 @@ class_id confidence x_min y_min x_max y_max
 - **Memory Management**: Custom CUDA memory allocation with proper synchronization
 - **TensorRT Optimization**: Leveraging TensorRT for optimized inference
 
+## Benchmarks
+- SAM2 base plus model
+- 94 target boxes
+- single L40s GPU
+- "whole" includes engine time, image I/O time, as well as pre-process and post-process time
+
+| Precision | Encoder (ms) | Decoder (ms) | Draw (ms) | Whole (ms) |
+|-----------|------------|--------------|--------------|------------|
+| FP32 | 45 | 83 | 15 | 168 |
+| FP16 | 23 | 63 | 13 | 123 |
+
+
 ## License
 
-[Your license information here]
+This project is licensed under the Apache License 2.0
+
+### Dependencies Licenses
+
+- **SAM2**: Licensed under the Apache License 2.0
+  - Original repository: [facebookresearch/sam2](https://github.com/facebookresearch/sam2)
+  - Copyright (c) Meta Platforms, Inc. and affiliates.
+
+- **argparse**: Licensed under the MIT License
+  - Original repository: [p-ranav/argparse](https://github.com/p-ranav/argparse)
+  - Copyright (c) 2018 Pranav Srinivas Kumar
 
 ## Acknowledgements
 
