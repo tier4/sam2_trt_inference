@@ -39,7 +39,7 @@ SAM2ImageDecoder::SAM2ImageDecoder(const std::string& onnx_path,
 
     CalculateMemorySize(
         batch_config[2], encoder_output_sizes[0], encoder_output_sizes[1], encoder_output_sizes[2]);
-    allocateGpuMemory();
+    AllocateGPUMemory();
     GetInputOutputDetails();
 }
 
@@ -47,7 +47,7 @@ SAM2ImageDecoder::~SAM2ImageDecoder()
 {
 }
 
-void SAM2ImageDecoder::allocateGpuMemory()
+void SAM2ImageDecoder::AllocateGPUMemory()
 {
     // CPU part
     normalized_coords_data =

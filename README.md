@@ -1,7 +1,7 @@
 # SAM2 TensorRT C++ Inference
 
 A high-performance TensorRT inference framework for Segment Anything Model 2 (SAM2) implemented in C++, with tools for model conversion from ONNX to TensorRT engine.
-![SAM2 TensorRT C++ Inference](demo.png)
+![SAM2 TensorRT C++ Inference](images/demo.png)
 
 ## Features
 
@@ -85,13 +85,13 @@ Options:
 The encoder model uses a fixed batch size of 1, while the decoder model's batch size is dynamically configured based on your GPU capabilities and memory constraints.
 
 ```bash
-./MyTRTSAM2App encoder.engine decoder.engine images_folder/ bboxes_folder/ output_folder/ [options]
+./trtsam2 encoder.engine decoder.engine images_folder/ bboxes_folder/ output_folder/ [options]
 ```
 
 ### Running Inference with ONNX model
 
 ```bash
-./MyTRTSAM2App encoder.onnx decoder.onnx images_folder/ bboxes_folder/ output_folder/ [options]
+./trtsam2 encoder.onnx decoder.onnx images_folder/ bboxes_folder/ output_folder/ [options]
 ```
 
 #### Command Line Arguments
@@ -114,22 +114,6 @@ The bounding box files should be in a text format with each line containing:
 class_id confidence x_min y_min x_max y_max
 ```
 
-## Architecture
-
-### Components
-
-- **SAM2ImageEncoder**: Processes input images to extract image embeddings
-- **SAM2ImageDecoder**: Takes embeddings and prompts to generate masks
-- **SAM2Image**: Main interface that coordinates the encoder and decoder
-- **Utils**: Helper functions for visualization and data processing
-- **TensorRTCommon**: Handles TensorRT engine loading, inference, and memory management
-
-### Optimization Techniques
-
-- **CUDA Streams**: Asynchronous operations for overlapping computation
-- **OpenMP Parallelization**: Multi-threaded mask processing
-- **Memory Management**: Custom CUDA memory allocation with proper synchronization
-- **TensorRT Optimization**: Leveraging TensorRT for optimized inference
 
 ## Benchmarks
 - SAM2 base plus model
@@ -163,7 +147,3 @@ This project is licensed under the Apache License 2.0
 - NVIDIA for TensorRT
 - OpenCV community
 - [argparse](https://github.com/p-ranav/argparse)
-
-## Contributing
-
-[Contributing guidelines]

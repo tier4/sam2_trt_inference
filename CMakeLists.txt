@@ -30,10 +30,10 @@ set(SOURCES
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
 
 # 定义可执行文件
-add_executable(MyTRTSAM2App ${SOURCES})
+add_executable(trtsam2 ${SOURCES})
 
 # 链接库文件
-target_link_libraries(MyTRTSAM2App PRIVATE 
+target_link_libraries(trtsam2 PRIVATE 
     ${OpenCV_LIBS}
     CUDA::cudart
     OpenMP::OpenMP_CXX
@@ -50,4 +50,4 @@ target_link_libraries(MyTRTSAM2App PRIVATE
     "stdc++fs"
     "stdc++"
 )
-target_include_directories(MyTRTSAM2App PRIVATE include)
+target_include_directories(trtsam2 PRIVATE include)

@@ -38,14 +38,14 @@ SAM2ImageEncoder::SAM2ImageEncoder(const std::string& onnx_path,
     GetInputDetails();
     GetOutputDetails();
 
-    allocateGpuMemory();
+    AllocateGPUMemory();
 }
 
 SAM2ImageEncoder::~SAM2ImageEncoder()
 {
 }
 
-void SAM2ImageEncoder::allocateGpuMemory()
+void SAM2ImageEncoder::AllocateGPUMemory()
 {
     const auto input_dims = trt_encoder_->getBindingDimensions(0);
     const auto embed_dims = trt_encoder_->getBindingDimensions(1);

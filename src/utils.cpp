@@ -12,7 +12,7 @@
 #include "omp.h"
 
 // Read and transform coordinates from file
-std::vector<cv::Rect> read_and_transform_coordinates(const std::string& file_path)
+std::vector<cv::Rect> ReadAndTransformCoordinates(const std::string& file_path)
 {
     std::vector<cv::Rect> box_coords;  // Store all rectangles
     std::ifstream file(file_path);     // Open file
@@ -61,7 +61,7 @@ std::vector<cv::Rect> read_and_transform_coordinates(const std::string& file_pat
 }
 
 // Generate random colors
-std::vector<cv::Scalar> generate_random_colors(int num_colors, int seed)
+std::vector<cv::Scalar> GenerateRandomColors(int num_colors, int seed)
 {
     std::vector<cv::Scalar> colors;
     std::mt19937 rng(seed);
@@ -76,7 +76,7 @@ std::vector<cv::Scalar> generate_random_colors(int num_colors, int seed)
 }
 
 // Draw single mask and add border
-void draw_mask(cv::Mat& image,
+void DrawMask(cv::Mat& image,
                const cv::Mat& mask,
                const cv::Scalar& color,
                float alpha,
@@ -94,7 +94,7 @@ void draw_mask(cv::Mat& image,
 }
 
 // Draw multiple masks
-cv::Mat draw_masks(const cv::Mat& image,
+cv::Mat DrawMasks(const cv::Mat& image,
                    const std::vector<cv::Mat>& masks,
                    float alpha,
                    bool draw_border)
@@ -102,7 +102,7 @@ cv::Mat draw_masks(const cv::Mat& image,
     cv::Mat mask_image = image.clone();  // Copy image
 
     // Generate random colors
-    auto colors = generate_random_colors(200, 42);
+    auto colors = GenerateRandomColors(200, 42);
 
 #pragma omp parallel for
     for (size_t i = 0; i < masks.size(); i++)
@@ -111,14 +111,14 @@ cv::Mat draw_masks(const cv::Mat& image,
             continue;
 
         cv::Scalar color = colors[i % colors.size()];
-        draw_mask(mask_image, masks[i], color, alpha, draw_border);
+        DrawMask(mask_image, masks[i], color, alpha, draw_border);
     }
     cv::Mat blended_image;
     cv::addWeighted(image, 1 - alpha, mask_image, alpha, 0, blended_image);  // Alpha blending
     return blended_image;
 }
 
-std::string replaceOtherString(const std::string& str,
+std::string ReplaceOtherString(const std::string& str,
                                const std::string& old_str,
                                const std::string& new_str)
 {
@@ -129,86 +129,4 @@ std::string replaceOtherString(const std::string& str,
         return result;  // Return original string if old_str not found
     }
     return result.replace(start_pos, old_str.length(), new_str);
-}
-
-// For debugging
-void saveHighDimensionalArrayToCSV(const char* filename,
-                                   const float* arr,
-                                   const int* shape,
-                                   int dims)
-{
-    int total_size = 1;
-    for (int i = 0; i < dims; ++i)
-    {
-        total_size *= shape[i];
-    }
-
-    std::ofstream file(filename);
-    for (int idx = 0; idx < total_size; ++idx)
-    {
-        file << arr[idx];
-        if ((idx + 1) % shape[dims - 1] == 0)
-        {  // End of each row
-            file << "\n";
-        }
-        else
-        {
-            file << ",";
-        }
-    }
-    file.close();
-}
-
-// Save cv::Mat to CSV file
-void saveMatToCSV(const cv::Mat& matrix, const std::string& filename)
-{
-    // Open output file
-    std::ofstream file(filename);
-    if (!file.is_open())
-    {
-        std::cerr << "Error: Unable to open file " << filename << std::endl;
-        return;
-    }
-
-    // Iterate through each row and column of the matrix
-    for (int i = 0; i < matrix.rows; i++)
-    {
-        for (int j = 0; j < matrix.cols; j++)
-        {
-            // Output matrix value to file
-            file << matrix.at<float>(i, j);  // Assuming matrix type is CV_32F
-            if (j < matrix.cols - 1)
-            {
-                file << ",";  // Separate columns with comma
-            }
-        }
-        file << "\n";  // Separate rows with newline
-    }
-
-    // Close file
-    file.close();
-    std::cout << "Matrix saved to " << filename << std::endl;
-}
-
-// Save cv::Mat to binary file
-void saveBlobToBinary(const cv::Mat& blob, const std::string& filename)
-{
-    // Open binary file
-    std::ofstream file(filename, std::ios::binary);
-    if (!file.is_open())
-    {
-        std::cerr << "Error: Unable to open file for writing: " << filename << std::endl;
-        return;
-    }
-
-    if (blob.isContinuous())
-    {
-        file.write(reinterpret_cast<const char*>(blob.data), blob.total() * blob.elemSize());
-    }
-    else
-    {
-        std::cerr << "Matrix is not continuous!" << std::endl;
-    }
-    file.close();
-    std::cout << "Blob saved to " << filename << std::endl;
 }

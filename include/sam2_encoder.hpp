@@ -56,7 +56,7 @@ class SAM2ImageEncoder
 
    private:
     // Allocate GPU memory
-    void allocateGpuMemory();
+    void AllocateGPUMemory();
 
     // Get input details from ONNX model
     void GetInputDetails();

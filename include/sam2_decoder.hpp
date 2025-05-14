@@ -64,7 +64,7 @@ class SAM2ImageDecoder
 
    private:
     // Allocate GPU memory
-    void allocateGpuMemory();
+    void AllocateGPUMemory();
 
     // Calculate memory size
     void CalculateMemorySize(const int decoder_batch_limit,
