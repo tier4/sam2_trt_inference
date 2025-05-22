@@ -98,7 +98,6 @@ struct BuildConfig
           sparse(sparse),
           debug_tensors(debug_tensors)
     {
-#ifndef LIGHTNET_STANDALONE
         if (std::find(valid_calib_type.begin(), valid_calib_type.end(), calib_type_str) ==
             valid_calib_type.end())
         {
@@ -109,7 +108,6 @@ struct BuildConfig
                     << "Default calibration type will be used: MinMax" << std::endl;
             std::cerr << message.str();
         }
-#endif
     }
 };
 
