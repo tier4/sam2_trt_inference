@@ -46,11 +46,13 @@ sudo apt install libopencv-dev
 ### Manual Setup
 
 If not using Docker, ensure you have the following installed:
-- CUDA Toolkit
-- TensorRT (8.5 or 8.6)
-- OpenCV
-- Boost libraries
-- OpenMP
+- Ubuntu 22.04
+- Nvidia driver(550)
+- CUDA Toolkit(12.3)
+- cuDNN(8.9.7)
+- TensorRT (8.6.1)
+- OpenCV(4.5.4)
+- Boost libraries(1.74.0)
 
 ## Building the Project
 
