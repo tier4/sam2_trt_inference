@@ -118,13 +118,14 @@ class_id confidence x_min y_min x_max y_max
 ## Benchmarks
 - SAM2 base plus model
 - 94 target boxes
-- single L40s GPU
 - "whole" includes engine time, image I/O time, as well as pre-process and post-process time
 
-| Precision | Encoder (ms) | Decoder (ms) | Draw (ms) | Whole (ms) |
-|-----------|------------|--------------|--------------|------------|
-| FP32 | 45 | 83 | 15 | 168 |
-| FP16 | 23 | 63 | 13 | 123 |
+| Device | Precision | Encoder (ms) | Decoder (ms) | Draw (ms) | Whole (ms) |
+|--------|-----------|------------|--------------|--------------|------------|
+| L40s | FP32 | 45 | 83 | 15 | 168 |
+| L40s | FP16 | 23 | 63 | 13 | 123 |
+| RTX 3070ti | FP16 | 60 | 276 | 46 | 414 |
+| Jetson Orin | FP16 | 159 | 310 | 94 | 637 |
 
 
 ## License
@@ -144,6 +145,6 @@ This project is licensed under the Apache License 2.0
 ## Acknowledgements
 
 - [SAM2 Paper and Original Implementation](https://github.com/facebookresearch/sam2)
-- NVIDIA for TensorRT
+- [NVIDIA TensorRT](https://developer.nvidia.com/tensorrt)
 - OpenCV community
 - [argparse](https://github.com/p-ranav/argparse)
