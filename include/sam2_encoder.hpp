@@ -68,17 +68,11 @@ class SAM2ImageEncoder
     // Get input details from ONNX model
     void GetInputDetails();
 
-    // Get output details from ONNX model
-    void GetOutputDetails();
-
     // Prepare input tensor
     cv::Mat Preprocess(const std::vector<cv::Mat>& images);
 
     // Execute inference
     bool Infer(const cv::Mat& input_tensor);
-
-    // Process inference output
-    void ProcessOutput();
 
     std::unique_ptr<tensorrt_common::TrtCommon> trt_encoder_;
 

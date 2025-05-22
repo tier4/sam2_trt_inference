@@ -102,7 +102,7 @@ void SAM2ImageDecoder::Predict(CudaUniquePtrHost<float[]>& image_embed,
         return;
     }
 
-    ProcessOutput(orig_im_size, current_batch_size);
+    PostProcess(orig_im_size, current_batch_size);
 }
 
 void SAM2ImageDecoder::GetInputOutputDetails()
@@ -303,7 +303,7 @@ bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]>& image_embed,
     return true;
 }
 
-void SAM2ImageDecoder::ProcessOutput(const cv::Size& orig_im_size, const int current_batch_size)
+void SAM2ImageDecoder::PostProcess(const cv::Size& orig_im_size, const int current_batch_size)
 {
     const float* mask_data = output_mask_data.get();
     auto mask_dims = trt_decoder_->getBindingDimensions(7);

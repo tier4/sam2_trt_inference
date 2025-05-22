@@ -17,7 +17,6 @@
 #include "sam2_image_inference.hpp"
 
 #include <iostream>
-#include <map>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>

@@ -17,7 +17,6 @@
 #include "sam2_encoder.hpp"
 
 #include <iostream>
-#include <map>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
@@ -43,7 +42,6 @@ SAM2ImageEncoder::SAM2ImageEncoder(const std::string& onnx_path,
     }
 
     GetInputDetails();
-    GetOutputDetails();
 
     AllocateGPUMemory();
 }
@@ -89,7 +87,6 @@ void SAM2ImageEncoder::EncodeImage(const std::vector<cv::Mat>& images)
         throw std::runtime_error("Failed to encode image");
         return;
     }
-    ProcessOutput();
 }
 
 void SAM2ImageEncoder::GetInputDetails()
@@ -98,10 +95,6 @@ void SAM2ImageEncoder::GetInputDetails()
     batch_size_ = input_dims.d[0];
     input_height_ = input_dims.d[2];
     input_width_ = input_dims.d[3];
-}
-
-void SAM2ImageEncoder::GetOutputDetails()
-{
 }
 
 cv::Mat SAM2ImageEncoder::Preprocess(const std::vector<cv::Mat>& images)
@@ -186,8 +179,4 @@ bool SAM2ImageEncoder::Infer(const cv::Mat& input_tensor)
     CHECK_CUDA_ERROR(cudaStreamSynchronize(*stream_));
 
     return true;
-}
-
-void SAM2ImageEncoder::ProcessOutput()
-{
 }

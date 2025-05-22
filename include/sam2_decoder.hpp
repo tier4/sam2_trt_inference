@@ -115,7 +115,7 @@ class SAM2ImageDecoder
                const int batch_idx);
 
     // Process inference results
-    void ProcessOutput(const cv::Size& orig_im_size, const int current_batch_size);
+    void PostProcess(const cv::Size& orig_im_size, const int current_batch_size);
 
     // Reset all variables
     void ResetVariables();
