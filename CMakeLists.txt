@@ -57,7 +57,6 @@ target_link_libraries(trtsam2 PRIVATE
     nvonnxparser
     cuda
     cudart
-    gflags
     boost_system
     boost_filesystem
     dl
