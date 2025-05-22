@@ -65,7 +65,7 @@ class SAM2ImageEncoder
     void GetOutputDetails();
 
     // Prepare input tensor
-    cv::Mat PrepareInput(const std::vector<cv::Mat>& images);
+    cv::Mat Preprocess(const std::vector<cv::Mat>& images);
 
     // Execute inference
     bool Infer(const cv::Mat& input_tensor);

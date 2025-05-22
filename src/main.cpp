@@ -58,11 +58,11 @@ void ProcessImage(std::string& encoder_path,
             std::string bb_file_name;
             if (image_file_name.find(".jpg") != std::string::npos)
             {
-                bb_file_name = ReplaceOtherString(image_file_name, ".jpg", ".txt");
+                bb_file_name = ReplaceFileExtension(image_file_name, ".jpg", ".txt");
             }
             else if (image_file_name.find(".png") != std::string::npos)
             {
-                bb_file_name = ReplaceOtherString(image_file_name, ".png", ".txt");
+                bb_file_name = ReplaceFileExtension(image_file_name, ".png", ".txt");
             }
 
             // Read image and bounding box

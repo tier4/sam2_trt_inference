@@ -75,7 +75,7 @@ void SAM2ImageEncoder::AllocateGPUMemory()
 
 void SAM2ImageEncoder::EncodeImage(const std::vector<cv::Mat>& images)
 {
-    cv::Mat input_tensor = PrepareInput(images);
+    cv::Mat input_tensor = Preprocess(images);
     bool success = Infer(input_tensor);
     if (!success)
     {
@@ -97,7 +97,7 @@ void SAM2ImageEncoder::GetOutputDetails()
 {
 }
 
-cv::Mat SAM2ImageEncoder::PrepareInput(const std::vector<cv::Mat>& images)
+cv::Mat SAM2ImageEncoder::Preprocess(const std::vector<cv::Mat>& images)
 {
     // RGB mean values
     cv::Scalar mean(123.675, 116.28, 103.53);

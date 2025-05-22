@@ -86,7 +86,7 @@ void SAM2ImageDecoder::Predict(CudaUniquePtrHost<float[]>& image_embed,
 {
     ResetVariables();
 
-    PrepareInputs(point_coords, point_labels, orig_im_size);
+    Preprocess(point_coords, point_labels, orig_im_size);
 
     bool success = Infer(image_embed, high_res_feats_0, high_res_feats_1, batch_idx);
     if (!success)
@@ -153,7 +153,7 @@ void SAM2ImageDecoder::CalculateMemorySize(const int decoder_batch_limit,
         output_confidence_shape.begin(), output_confidence_shape.end(), 1, std::multiplies<int>());
 }
 
-void SAM2ImageDecoder::PrepareInputs(const std::vector<std::vector<cv::Point2f>>& point_coords,
+void SAM2ImageDecoder::Preprocess(const std::vector<std::vector<cv::Point2f>>& point_coords,
                                      const std::vector<std::vector<float>>& point_labels,
                                      const cv::Size& orig_im_size)
 {

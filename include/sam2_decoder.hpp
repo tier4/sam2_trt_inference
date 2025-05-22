@@ -97,7 +97,7 @@ class SAM2ImageDecoder
     void GetInputOutputDetails();
 
     // Prepare input data
-    void PrepareInputs(const std::vector<std::vector<cv::Point2f>>& point_coords,
+    void Preprocess(const std::vector<std::vector<cv::Point2f>>& point_coords,
                        const std::vector<std::vector<float>>& point_labels,
                        const cv::Size& orig_im_size);
 

@@ -118,7 +118,7 @@ cv::Mat DrawMasks(const cv::Mat& image,
     return blended_image;
 }
 
-std::string ReplaceOtherString(const std::string& str,
+std::string ReplaceFileExtension(const std::string& str,
                                const std::string& old_str,
                                const std::string& new_str)
 {
