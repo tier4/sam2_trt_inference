@@ -1,7 +1,7 @@
 # SAM2 TensorRT C++ Inference
 
 A high-performance TensorRT inference framework for Segment Anything Model 2 (SAM2) implemented in C++, with tools for model conversion from ONNX to TensorRT engine.
-![SAM2 TensorRT C++ Inference](images/demo.png)
+![SAM2 TensorRT C++ Inference](assets/thumbnail.png)
 
 ## Features
 
@@ -111,9 +111,41 @@ The encoder model uses a fixed batch size of 1, while the decoder model's batch 
 
 The bounding box files should be in a text format with each line containing:
 ```
-class_id confidence x_min y_min x_max y_max
+class_name confidence left top right bottom
 ```
 
+Where:
+- `class_name`: The class name of the object
+- `confidence`: Detection confidence score (between 0 and 1)
+- `left`: X coordinate of the top-left corner of the bounding box
+- `top`: Y coordinate of the top-left corner of the bounding box
+- `right`: X coordinate of the bottom-right corner of the bounding box
+- `bottom`: Y coordinate of the bottom-right corner of the bounding box
+
+This format is based on the [mAP (mean Average Precision)](https://github.com/Cartucho/mAP) evaluation tool.
+
+### Input File Naming Convention
+
+The image files and their corresponding bounding box files must have matching names (excluding extensions). For example:
+
+```
+images_folder/
+    ├── image1.jpg
+    ├── image2.png
+    └── image3.jpeg
+
+bboxes_folder/
+    ├── image1.txt
+    ├── image2.txt
+    └── image3.txt
+```
+
+In this example:
+- `image1.jpg` corresponds to `image1.txt`
+- `image2.png` corresponds to `image2.txt`
+- `image3.jpeg` corresponds to `image3.txt`
+
+The program will process each image with its corresponding bounding box file based on the matching names. You can find sample data in the `sample_data` folder to test the inference.
 
 ## Benchmarks
 - SAM2 base plus model
