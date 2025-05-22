@@ -1,16 +1,22 @@
-/**
- * @file sam2_encoder.cpp
- * @brief Implementation of SAM2 encoder using TensorRT
- *
- * Copyright (c) 2024 TIERIV
- * Author: Hunter Cheng (haoxuan.cheng@tier4.jp)
- * Created: 2025.4
- */
+// Copyright 2025 Tier IV, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
 
 #include "sam2_encoder.hpp"
 
 #include <iostream>
-#include <map>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
@@ -36,7 +42,6 @@ SAM2ImageEncoder::SAM2ImageEncoder(const std::string& onnx_path,
     }
 
     GetInputDetails();
-    GetOutputDetails();
 
     AllocateGPUMemory();
 }
@@ -75,14 +80,13 @@ void SAM2ImageEncoder::AllocateGPUMemory()
 
 void SAM2ImageEncoder::EncodeImage(const std::vector<cv::Mat>& images)
 {
-    cv::Mat input_tensor = PrepareInput(images);
+    cv::Mat input_tensor = Preprocess(images);
     bool success = Infer(input_tensor);
     if (!success)
     {
         throw std::runtime_error("Failed to encode image");
         return;
     }
-    ProcessOutput();
 }
 
 void SAM2ImageEncoder::GetInputDetails()
@@ -93,11 +97,7 @@ void SAM2ImageEncoder::GetInputDetails()
     input_width_ = input_dims.d[3];
 }
 
-void SAM2ImageEncoder::GetOutputDetails()
-{
-}
-
-cv::Mat SAM2ImageEncoder::PrepareInput(const std::vector<cv::Mat>& images)
+cv::Mat SAM2ImageEncoder::Preprocess(const std::vector<cv::Mat>& images)
 {
     // RGB mean values
     cv::Scalar mean(123.675, 116.28, 103.53);
@@ -179,8 +179,4 @@ bool SAM2ImageEncoder::Infer(const cv::Mat& input_tensor)
     CHECK_CUDA_ERROR(cudaStreamSynchronize(*stream_));
 
     return true;
-}
-
-void SAM2ImageEncoder::ProcessOutput()
-{
 }

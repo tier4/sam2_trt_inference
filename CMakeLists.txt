@@ -1,23 +1,38 @@
 cmake_minimum_required(VERSION 3.10)
-project(SAM2-ORT)
+project(SAM2-TRT)
 
-# 设置 C++ 标准
+# Set build type option
+option(BUILD_TYPE "Build type (Debug/Release)" Release)
+set(CMAKE_BUILD_TYPE ${BUILD_TYPE})
+
+# Set C++ standard
 set(CMAKE_CXX_COMPILER "/usr/bin/g++")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -O3 -Wno-write-strings -Wall")
+
+# Set compiler flags based on build type
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g -O0 -Wall -Wextra -Wno-write-strings")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -O0")
+    message(STATUS "Building in Debug mode")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -O3 -Wno-write-strings -Wall")
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
+    message(STATUS "Building in Release mode")
+endif()
+
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath=\$ORIGIN")
 
-# 包含头文件目录
+# Include header directories
 include_directories(/usr/local/cuda/include include)
 
-# 链接路径
+# Link directories
 link_directories(/usr/local/cuda/lib64)
 
-# 依赖库
+# Dependencies
 find_package(CUDAToolkit REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(OpenMP REQUIRED)
 
-# 定义源文件
+# Define source files
 set(SOURCES
     src/main.cpp
     src/sam2_image_inference.cpp
@@ -27,12 +42,11 @@ set(SOURCES
     src/tensorrt_common/simple_profiler.cpp
     src/tensorrt_common/tensorrt_common.cpp
 )
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
 
-# 定义可执行文件
+# Define executable
 add_executable(trtsam2 ${SOURCES})
 
-# 链接库文件
+# Link libraries
 target_link_libraries(trtsam2 PRIVATE 
     ${OpenCV_LIBS}
     CUDA::cudart
@@ -43,7 +57,6 @@ target_link_libraries(trtsam2 PRIVATE
     nvonnxparser
     cuda
     cudart
-    gflags
     boost_system
     boost_filesystem
     dl

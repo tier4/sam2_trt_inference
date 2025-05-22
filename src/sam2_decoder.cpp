@@ -1,11 +1,18 @@
-/**
- * @file sam2_decoder.cpp
- * @brief Implementation of SAM2 decoder using TensorRT
- *
- * Copyright (c) 2024 TIERIV
- * Author: Hunter Cheng (haoxuan.cheng@tier4.jp)
- * Created: 2025.4
- */
+// Copyright 2025 Tier IV, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
 
 #include "sam2_decoder.hpp"
 
@@ -86,7 +93,7 @@ void SAM2ImageDecoder::Predict(CudaUniquePtrHost<float[]>& image_embed,
 {
     ResetVariables();
 
-    PrepareInputs(point_coords, point_labels, orig_im_size);
+    Preprocess(point_coords, point_labels, orig_im_size);
 
     bool success = Infer(image_embed, high_res_feats_0, high_res_feats_1, batch_idx);
     if (!success)
@@ -95,7 +102,7 @@ void SAM2ImageDecoder::Predict(CudaUniquePtrHost<float[]>& image_embed,
         return;
     }
 
-    ProcessOutput(orig_im_size, current_batch_size);
+    PostProcess(orig_im_size, current_batch_size);
 }
 
 void SAM2ImageDecoder::GetInputOutputDetails()
@@ -153,7 +160,7 @@ void SAM2ImageDecoder::CalculateMemorySize(const int decoder_batch_limit,
         output_confidence_shape.begin(), output_confidence_shape.end(), 1, std::multiplies<int>());
 }
 
-void SAM2ImageDecoder::PrepareInputs(const std::vector<std::vector<cv::Point2f>>& point_coords,
+void SAM2ImageDecoder::Preprocess(const std::vector<std::vector<cv::Point2f>>& point_coords,
                                      const std::vector<std::vector<float>>& point_labels,
                                      const cv::Size& orig_im_size)
 {
@@ -296,7 +303,7 @@ bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]>& image_embed,
     return true;
 }
 
-void SAM2ImageDecoder::ProcessOutput(const cv::Size& orig_im_size, const int current_batch_size)
+void SAM2ImageDecoder::PostProcess(const cv::Size& orig_im_size, const int current_batch_size)
 {
     const float* mask_data = output_mask_data.get();
     auto mask_dims = trt_decoder_->getBindingDimensions(7);

@@ -31,15 +31,20 @@
 *.out
 *.app
 
-
-#
+# Build and cache directories
 .cache/
 /build
 /models
 /test_images
 /trt_engine_cache
-*.onnx
 /.vscode
-*.jpg
-*.txt
 *.code-workspace
+
+# Model files
+*.onnx
+
+# Ignore image and text files except in sample_data
+*.jpg
+!sample_data/**/*.jpg
+*.txt
+!sample_data/**/*.txt

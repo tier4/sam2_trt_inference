@@ -1,7 +1,7 @@
 # SAM2 TensorRT C++ Inference
 
 A high-performance TensorRT inference framework for Segment Anything Model 2 (SAM2) implemented in C++, with tools for model conversion from ONNX to TensorRT engine.
-![SAM2 TensorRT C++ Inference](images/demo.png)
+![SAM2 TensorRT C++ Inference](assets/thumbnail.png)
 
 ## Features
 
@@ -46,11 +46,13 @@ sudo apt install libopencv-dev
 ### Manual Setup
 
 If not using Docker, ensure you have the following installed:
-- CUDA Toolkit
-- TensorRT (8.5 or 8.6)
-- OpenCV
-- Boost libraries
-- OpenMP
+- Ubuntu 22.04
+- Nvidia driver(550)
+- CUDA Toolkit(12.3)
+- cuDNN(8.9.7)
+- TensorRT (8.6.1)
+- OpenCV(4.5.4)
+- Boost libraries(1.74.0)
 
 ## Building the Project
 
@@ -111,20 +113,53 @@ The encoder model uses a fixed batch size of 1, while the decoder model's batch 
 
 The bounding box files should be in a text format with each line containing:
 ```
-class_id confidence x_min y_min x_max y_max
+class_name confidence left top right bottom
 ```
 
+Where:
+- `class_name`: The class name of the object
+- `confidence`: Detection confidence score (between 0 and 1)
+- `left`: X coordinate of the top-left corner of the bounding box
+- `top`: Y coordinate of the top-left corner of the bounding box
+- `right`: X coordinate of the bottom-right corner of the bounding box
+- `bottom`: Y coordinate of the bottom-right corner of the bounding box
+
+This format is based on the [mAP (mean Average Precision)](https://github.com/Cartucho/mAP) evaluation tool.
+
+### Input File Naming Convention
+
+The image files and their corresponding bounding box files must have matching names (excluding extensions). For example:
+
+```
+images_folder/
+    ├── image1.jpg
+    ├── image2.png
+    └── image3.jpeg
+
+bboxes_folder/
+    ├── image1.txt
+    ├── image2.txt
+    └── image3.txt
+```
+
+In this example:
+- `image1.jpg` corresponds to `image1.txt`
+- `image2.png` corresponds to `image2.txt`
+- `image3.jpeg` corresponds to `image3.txt`
+
+The program will process each image with its corresponding bounding box file based on the matching names. You can find sample data in the `sample_data` folder to test the inference.
 
 ## Benchmarks
 - SAM2 base plus model
 - 94 target boxes
-- single L40s GPU
 - "whole" includes engine time, image I/O time, as well as pre-process and post-process time
 
-| Precision | Encoder (ms) | Decoder (ms) | Draw (ms) | Whole (ms) |
-|-----------|------------|--------------|--------------|------------|
-| FP32 | 45 | 83 | 15 | 168 |
-| FP16 | 23 | 63 | 13 | 123 |
+| Device | Precision | Encoder (ms) | Decoder (ms) | Draw (ms) | Whole (ms) |
+|--------|-----------|------------|--------------|--------------|------------|
+| L40s | FP32 | 45 | 83 | 15 | 168 |
+| L40s | FP16 | 23 | 63 | 13 | 123 |
+| RTX 3070ti | FP16 | 60 | 276 | 46 | 414 |
+| Jetson Orin | FP16 | 159 | 310 | 94 | 637 |
 
 
 ## License
@@ -144,6 +179,6 @@ This project is licensed under the Apache License 2.0
 ## Acknowledgements
 
 - [SAM2 Paper and Original Implementation](https://github.com/facebookresearch/sam2)
-- NVIDIA for TensorRT
+- [NVIDIA TensorRT](https://developer.nvidia.com/tensorrt)
 - OpenCV community
 - [argparse](https://github.com/p-ranav/argparse)
