@@ -154,7 +154,7 @@ The program will process each image with its corresponding bounding box file bas
 | L40s | FP32 | 45 | 83 | 15 | 168 |
 | L40s | FP16 | 23 | 63 | 13 | 123 |
 | RTX 3070ti | FP16 | 60 | 276 | 46 | 414 |
-| Jetson Orin | FP16 | 159 | 310 | 94 | 637 |
+| Jetson Orin | FP16 | 135 | 308 | 93 | 611 |
 
 
 ## License
