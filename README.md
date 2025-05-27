@@ -81,7 +81,7 @@ pip install -r requirements.txt
 python export_sam2_onnx.py sam2.1_hiera_base_plus /path/to/checkpoint.pt
 ```
 
-For more details, refer to the [sam2_pytorch2onnx documentation](sam2_pytorch2onnx/README.md).
+For more details, refer to the [sam2_pytorch2onnx documentation](https://github.com/tier4/sam2_pytorch2onnx/blob/main/README.md).
 
 ### Running Inference with pre-generated TensorRT engine
 
