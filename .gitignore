@@ -46,5 +46,6 @@
 # Ignore image and text files except in sample_data
 *.jpg
 !sample_data/**/*.jpg
+!assets/*.jpg
 *.txt
 !sample_data/**/*.txt

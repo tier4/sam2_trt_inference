@@ -1,7 +1,7 @@
 # SAM2 TensorRT C++ Inference
 
 A high-performance TensorRT inference framework for Segment Anything Model 2 (SAM2) implemented in C++, with tools for model conversion from ONNX to TensorRT engine.
-![SAM2 TensorRT C++ Inference](assets/thumbnail.png)
+![SAM2 TensorRT C++ Inference](assets/thumbnail.jpg)
 
 ## Features
 
