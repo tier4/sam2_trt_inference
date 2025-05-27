@@ -1,0 +1,3 @@
+[submodule "sam2_pytorch2onnx"]
+	path = sam2_pytorch2onnx
+	url = https://github.com/tier4/sam2_pytorch2onnx.git

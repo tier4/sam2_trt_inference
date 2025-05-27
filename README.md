@@ -31,6 +31,15 @@ A high-performance TensorRT inference framework for Segment Anything Model 2 (SA
 
 ## Environment Setup
 
+### Clone the Repository
+```bash
+# Clone with submodules
+git clone --recursive https://github.com/your-username/sam2_trt_cpp.git
+
+# If you've already cloned without --recursive, run:
+git submodule update --init --recursive
+```
+
 ### Using Docker (Recommended)
 
 Build and run the Docker container:
@@ -61,7 +70,18 @@ make
 
 ### Convert models from pytorch to onnx
 
-Refer to this [repo](https://github.com/tier4/sam2_pytorch2onnx) for converting onnx models
+The repository includes a submodule for converting PyTorch models to ONNX format. To use it:
+
+```bash
+# Navigate to the conversion tool directory
+cd sam2_pytorch2onnx
+
+# Install dependencies and run conversion
+pip install -r requirements.txt
+python export_sam2_onnx.py sam2.1_hiera_base_plus /path/to/checkpoint.pt
+```
+
+For more details, refer to the [sam2_pytorch2onnx documentation](sam2_pytorch2onnx/README.md).
 
 ### Running Inference with pre-generated TensorRT engine
 
