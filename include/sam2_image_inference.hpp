@@ -54,7 +54,10 @@ class SAM2Image
     const std::vector<std::vector<cv::Mat>>& GetMasks();
 
     // Get maximum entropy map and score
-    void GetMaxEntropy(cv::Mat& output_image, float& entropy_score);
+    cv::Mat GetMaxEntropy(float& peak_entropy_score);
+
+    // Get entropy scores
+    const std::vector<float>& GetEntropies() const;
 
    private:
     // Clear box coordinates and labels
@@ -84,6 +87,10 @@ class SAM2Image
     std::vector<std::vector<cv::Mat>> masks_;
     std::vector<std::vector<cv::Point2f>> box_coords_;
     std::vector<std::vector<float>> box_labels_;
+
+    // Entropy scores
+    std::vector<cv::Mat> mat_entropies_;
+    std::vector<float> entropies_;      
 
     // Original input image dimensions
     std::vector<cv::Size> orig_im_size_;

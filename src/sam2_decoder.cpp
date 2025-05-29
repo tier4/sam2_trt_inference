@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 #include "sam2_decoder.hpp"
 
 #include <opencv2/opencv.hpp>
@@ -161,8 +159,8 @@ void SAM2ImageDecoder::CalculateMemorySize(const int decoder_batch_limit,
 }
 
 void SAM2ImageDecoder::Preprocess(const std::vector<std::vector<cv::Point2f>>& point_coords,
-                                     const std::vector<std::vector<float>>& point_labels,
-                                     const cv::Size& orig_im_size)
+                                  const std::vector<std::vector<float>>& point_labels,
+                                  const cv::Size& orig_im_size)
 {
     // Normalize point coordinates
     int coords_idx = 0;
@@ -330,6 +328,57 @@ void SAM2ImageDecoder::PostProcess(const cv::Size& orig_im_size, const int curre
         resized_mask.convertTo(binary_mask, CV_8U, 255);
 
         result_masks[i] = binary_mask;
+    }
+}
+
+void SAM2ImageDecoder::CalcEntropy(const cv::Size& orig_im_size,
+                                   const int current_batch_size,
+                                   const std::vector<std::vector<cv::Point2f>>& point_coords)
+{
+    const float* mask_data = output_mask_data.get();
+    auto mask_dims = trt_decoder_->getBindingDimensions(7);
+    std::vector<int64_t> mask_shape = {
+        current_batch_size, mask_dims.d[1], mask_dims.d[2], mask_dims.d[3]};
+    const int64_t h = mask_shape[2], w = mask_shape[3];
+    float sum_ent = 0.0;
+
+    int batch_size = int(point_coords.size());
+    entropies_.resize(batch_size);
+    mat_entropies_.resize(batch_size);
+
+#pragma omp parallel for schedule(static, 4) num_threads(4)
+    for (int i = 0; i < batch_size; i++)
+    {
+        cv::Mat mask(h, w, CV_32FC1, (void*)(mask_data + i * h * w));
+        cv::Mat ent = cv::Mat::zeros(mask_shape[2], mask_shape[3], CV_8UC1);
+        int y0 = (mask_shape[2] / (float)orig_im_size.height) * (point_coords[i][0]).y;
+        int y1 = (mask_shape[2] / (float)orig_im_size.height) * (point_coords[i][1]).y;
+        int x0 = (mask_shape[3] / (float)orig_im_size.width) * (point_coords[i][0]).x;
+        int x1 = (mask_shape[3] / (float)orig_im_size.width) * (point_coords[i][1]).x;
+        int width = x1 - x0;
+        int height = y1 - y0;
+
+        for (int y = y0; y < y1; y++)
+        {
+            for (int x = x0; x < x1; x++)
+            {
+                float p = mask.at<float>(y, x);
+                p = 1.f / (1.f + expf(-p));
+                float value = -p * log(p + 1e-10);
+                ent.at<unsigned char>(y, x) += (unsigned char)(255 * value);
+                sum_ent += value;
+            }
+        }
+        if ((width * height) < 1)
+        {
+            sum_ent = 0.0;
+        }
+        else
+        {
+            sum_ent /= (width * height);
+        }
+        entropies_[i] = sum_ent;
+        mat_entropies_[i] = ent;
     }
 }
 

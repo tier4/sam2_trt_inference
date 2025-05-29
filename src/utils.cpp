@@ -137,3 +137,12 @@ std::string ReplaceFileExtension(const std::string& str,
     }
     return result.replace(start_pos, old_str.length(), new_str);
 }
+
+std::vector<std::vector<cv::Point>> get_polygons( const cv::Mat &mask)
+{  
+  std::vector<std::vector<cv::Point>> contours;  
+  //cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+  contours.reserve(1000);
+  cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+  return contours;
+}

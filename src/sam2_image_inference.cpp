@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 #include "sam2_image_inference.hpp"
 
 #include <iostream>
@@ -22,6 +20,7 @@
 #include <vector>
 
 #include "utils.hpp"
+#include "colormap.hpp"
 
 SAM2Image::SAM2Image(const std::string& encoder_path,
                      const std::string& decoder_path,
@@ -132,6 +131,9 @@ void SAM2Image::DecodeMask(const cv::Size& orig_im_size,
     masks_per_image.insert(masks_per_image.end(),
                            masks_per_image_per_decoder_batch.begin(),
                            masks_per_image_per_decoder_batch.end());
+    mat_entropies_.insert(
+        mat_entropies_.end(), decoder_->mat_entropies_.begin(), decoder_->mat_entropies_.end());
+    entropies_.insert(entropies_.end(), decoder_->entropies_.begin(), decoder_->entropies_.end());
 }
 
 const std::vector<std::vector<cv::Mat>>& SAM2Image::GetMasks()
@@ -145,49 +147,64 @@ void SAM2Image::ClearBoxes()
     box_labels_.clear();
 }
 
-void SAM2Image::GetMaxEntropy(cv::Mat& output_image, float& entropy_score)
+cv::Mat SAM2Image::GetMaxEntropy(float& peak_entropy_score)
 {
-    if (masks_.empty() || masks_[0].empty()) {
-        output_image = cv::Mat::zeros(256, 256, CV_8UC3);
-        entropy_score = 0.0f;
-        return;
+    cv::Mat max_ent, max_ent_jet;
+    if (mat_entropies_.size() == 0)
+    {
+        return max_ent;
     }
+    int height = mat_entropies_[0].rows;
+    int width = mat_entropies_[0].cols;
+    max_ent = cv::Mat::zeros(height, width, CV_8UC1);
+    max_ent_jet = cv::Mat::zeros(height, width, CV_8UC3);
 
-    // Calculate average of all masks
-    cv::Mat avg_mask = cv::Mat::zeros(masks_[0][0].size(), CV_32F);
-    int count = 0;
-    
-    for (const auto& image_masks : masks_) {
-        for (const auto& mask : image_masks) {
-            cv::Mat float_mask;
-            mask.convertTo(float_mask, CV_32F, 1.0/255.0);
-            avg_mask += float_mask;
-            count++;
-        }
-    }
-    
-    if (count > 0) {
-        avg_mask /= count;
-    }
-
-    // Calculate entropy map
-    cv::Mat entropy_map = cv::Mat::zeros(avg_mask.size(), CV_32F);
-    for (int i = 0; i < avg_mask.rows; i++) {
-        for (int j = 0; j < avg_mask.cols; j++) {
-            float p = avg_mask.at<float>(i, j);
-            if (p > 0 && p < 1) {
-                float entropy = -p * std::log2(p) - (1-p) * std::log2(1-p);
-                entropy_map.at<float>(i, j) = entropy;
+    for (int i = 0; i < (int)mat_entropies_.size(); i++)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                max_ent.at<unsigned char>(y, x) =
+                    (mat_entropies_[i].at<unsigned char>(y, x) > max_ent.at<unsigned char>(y, x))
+                        ? mat_entropies_[i].at<unsigned char>(y, x)
+                        : max_ent.at<unsigned char>(y, x);
             }
         }
     }
 
-    // Calculate total entropy score
-    entropy_score = cv::mean(entropy_map)[0];
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            const auto& color = jet_colormap[max_ent.at<unsigned char>(y, x)];
+            max_ent_jet.at<cv::Vec3b>(y, x)[0] = color[0];
+            max_ent_jet.at<cv::Vec3b>(y, x)[1] = color[1];
+            max_ent_jet.at<cv::Vec3b>(y, x)[2] = color[2];
+        }
+    }
+    float sum_ent = 0.0;
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            sum_ent += max_ent.at<unsigned char>(y, x);
+        }
+    }
+    sum_ent /= (width * height);
+    cv::putText(max_ent_jet,
+                std::to_string(sum_ent),
+                cv::Point(32, 32),
+                1,
+                1.0,
+                cv::Scalar(255, 255, 255),
+                1);
+    peak_entropy_score = sum_ent;
+    // return max_ent;
+    return max_ent_jet;
+}
 
-    // Convert entropy map to visualization image
-    cv::Mat normalized_entropy;
-    cv::normalize(entropy_map, normalized_entropy, 0, 255, cv::NORM_MINMAX);
-    normalized_entropy.convertTo(output_image, CV_8U);
-    cv::applyColorMap(output_image, output_image, cv::COLORMAP_JET);
+const std::vector<float>& SAM2Image::GetEntropies() const
+{
+    return entropies_;
 }

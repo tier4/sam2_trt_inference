@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 #pragma once
 
 #include <cuda_utils/cuda_unique_ptr.hpp>
@@ -55,6 +53,8 @@ class SAM2ImageDecoder
 
     // Result masks
     std::vector<cv::Mat> result_masks;
+    std::vector<cv::Mat> mat_entropies_;
+    std::vector<float> entropies_;
     std::unique_ptr<tensorrt_common::TrtCommon> trt_decoder_;
 
     // CPU input data
@@ -105,8 +105,8 @@ class SAM2ImageDecoder
 
     // Prepare input data
     void Preprocess(const std::vector<std::vector<cv::Point2f>>& point_coords,
-                       const std::vector<std::vector<float>>& point_labels,
-                       const cv::Size& orig_im_size);
+                    const std::vector<std::vector<float>>& point_labels,
+                    const cv::Size& orig_im_size);
 
     // Inference process
     bool Infer(CudaUniquePtrHost<float[]>& image_embed,
@@ -119,6 +119,11 @@ class SAM2ImageDecoder
 
     // Reset all variables
     void ResetVariables();
+
+    // Calculate entropy
+    void CalcEntropy(const cv::Size& orig_im_size,
+                     const int current_batch_size,
+                     const std::vector<std::vector<cv::Point2f>>& point_coords);
 
     StreamUniquePtr stream_ {makeCudaStream()};
 

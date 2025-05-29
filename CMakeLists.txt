@@ -52,6 +52,7 @@ set(SOURCES
   src/sam2_decoder.cpp
   src/sam2_ctypes.cpp
   src/utils.cpp
+  src/colormap.cpp
   src/tensorrt_common/simple_profiler.cpp
   src/tensorrt_common/tensorrt_common.cpp
 )
