@@ -21,6 +21,9 @@ endif()
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath=\$ORIGIN")
 
+# Add cmake modules path
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
 # Include header directories
 include_directories(/usr/local/cuda/include include)
 
@@ -31,36 +34,84 @@ link_directories(/usr/local/cuda/lib64)
 find_package(CUDAToolkit REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(OpenMP REQUIRED)
+find_package(TensorRT REQUIRED)
+
+# Add nlohmann_json
+include(FetchContent)
+FetchContent_Declare(
+  json
+  URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz
+)
+FetchContent_MakeAvailable(json)
 
 # Define source files
 set(SOURCES
-    src/main.cpp
-    src/sam2_image_inference.cpp
-    src/sam2_encoder.cpp
-    src/sam2_decoder.cpp
-    src/utils.cpp
-    src/tensorrt_common/simple_profiler.cpp
-    src/tensorrt_common/tensorrt_common.cpp
+  src/main.cpp
+  src/sam2_image_inference.cpp
+  src/sam2_encoder.cpp
+  src/sam2_decoder.cpp
+  src/sam2_ctypes.cpp
+  src/utils.cpp
+  src/tensorrt_common/simple_profiler.cpp
+  src/tensorrt_common/tensorrt_common.cpp
 )
+
+# Create shared library for Python bindings
+add_library(trt_sam2_infer SHARED ${SOURCES})
+target_link_libraries(trt_sam2_infer PRIVATE 
+  ${OpenCV_LIBS}
+  CUDA::cudart
+  OpenMP::OpenMP_CXX
+  nvinfer
+  nvinfer_plugin
+  nvparsers
+  nvonnxparser
+  cuda
+  cudart
+  boost_system
+  boost_filesystem
+  dl
+  "stdc++fs"
+  "stdc++"
+  nlohmann_json::nlohmann_json
+)
+target_include_directories(trt_sam2_infer PRIVATE include)
 
 # Define executable
 add_executable(trtsam2 ${SOURCES})
 
 # Link libraries
 target_link_libraries(trtsam2 PRIVATE 
-    ${OpenCV_LIBS}
-    CUDA::cudart
-    OpenMP::OpenMP_CXX
-    nvinfer
-    nvinfer_plugin
-    nvparsers
-    nvonnxparser
-    cuda
-    cudart
-    boost_system
-    boost_filesystem
-    dl
-    "stdc++fs"
-    "stdc++"
+  ${OpenCV_LIBS}
+  CUDA::cudart
+  OpenMP::OpenMP_CXX
+  nvinfer
+  nvinfer_plugin
+  nvparsers
+  nvonnxparser
+  cuda
+  cudart
+  boost_system
+  boost_filesystem
+  dl
+  "stdc++fs"
+  "stdc++"
+  nlohmann_json::nlohmann_json
 )
 target_include_directories(trtsam2 PRIVATE include)
+
+# Install targets
+install(TARGETS trt_sam2_infer
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(TARGETS trtsam2
+  RUNTIME DESTINATION bin
+)
+
+# Install Python package
+install(DIRECTORY python/
+  DESTINATION lib/python3.8/site-packages/trt_sam2
+  FILES_MATCHING PATTERN "*.py"
+)

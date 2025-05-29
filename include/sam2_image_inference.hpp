@@ -23,6 +23,7 @@
 #include <string>
 #include <tensorrt_common/tensorrt_common.hpp>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 #include "sam2_decoder.hpp"
 #include "sam2_encoder.hpp"
@@ -51,6 +52,9 @@ class SAM2Image
 
     // Get all generated masks
     const std::vector<std::vector<cv::Mat>>& GetMasks();
+
+    // Get maximum entropy map and score
+    void GetMaxEntropy(cv::Mat& output_image, float& entropy_score);
 
    private:
     // Clear box coordinates and labels

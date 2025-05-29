@@ -144,3 +144,50 @@ void SAM2Image::ClearBoxes()
     box_coords_.clear();
     box_labels_.clear();
 }
+
+void SAM2Image::GetMaxEntropy(cv::Mat& output_image, float& entropy_score)
+{
+    if (masks_.empty() || masks_[0].empty()) {
+        output_image = cv::Mat::zeros(256, 256, CV_8UC3);
+        entropy_score = 0.0f;
+        return;
+    }
+
+    // Calculate average of all masks
+    cv::Mat avg_mask = cv::Mat::zeros(masks_[0][0].size(), CV_32F);
+    int count = 0;
+    
+    for (const auto& image_masks : masks_) {
+        for (const auto& mask : image_masks) {
+            cv::Mat float_mask;
+            mask.convertTo(float_mask, CV_32F, 1.0/255.0);
+            avg_mask += float_mask;
+            count++;
+        }
+    }
+    
+    if (count > 0) {
+        avg_mask /= count;
+    }
+
+    // Calculate entropy map
+    cv::Mat entropy_map = cv::Mat::zeros(avg_mask.size(), CV_32F);
+    for (int i = 0; i < avg_mask.rows; i++) {
+        for (int j = 0; j < avg_mask.cols; j++) {
+            float p = avg_mask.at<float>(i, j);
+            if (p > 0 && p < 1) {
+                float entropy = -p * std::log2(p) - (1-p) * std::log2(1-p);
+                entropy_map.at<float>(i, j) = entropy;
+            }
+        }
+    }
+
+    // Calculate total entropy score
+    entropy_score = cv::mean(entropy_map)[0];
+
+    // Convert entropy map to visualization image
+    cv::Mat normalized_entropy;
+    cv::normalize(entropy_map, normalized_entropy, 0, 255, cv::NORM_MINMAX);
+    normalized_entropy.convertTo(output_image, CV_8U);
+    cv::applyColorMap(output_image, output_image, cv::COLORMAP_JET);
+}
