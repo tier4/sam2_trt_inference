@@ -36,7 +36,7 @@ link_directories(/usr/local/cuda/lib64)
 find_package(CUDAToolkit REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(OpenMP REQUIRED)
-find_package(TensorRT REQUIRED)
+# find_package(TensorRT REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
 # Define source files
