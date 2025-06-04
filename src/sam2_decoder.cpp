@@ -101,6 +101,7 @@ void SAM2ImageDecoder::Predict(CudaUniquePtrHost<float[]>& image_embed,
     }
 
     PostProcess(orig_im_size, current_batch_size);
+    CalcEntropy(orig_im_size, current_batch_size, point_coords);
 }
 
 void SAM2ImageDecoder::GetInputOutputDetails()

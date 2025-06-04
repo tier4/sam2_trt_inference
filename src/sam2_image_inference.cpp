@@ -30,6 +30,7 @@ SAM2Image::SAM2Image(const std::string& encoder_path,
     : decoder_batch_limit_(decoder_batch_limit),
       model_precision_(model_precision)
 {
+    cv::setNumThreads(1);
     // Create configuration
     tensorrt_common::BatchConfig batch_config_encoder = {1, 1, 1};
     tensorrt_common::BatchConfig batch_config_decoder = {
@@ -62,6 +63,8 @@ void SAM2Image::RunEncoder(const std::vector<cv::Mat>& images)
     // Clear all variables
     masks_.clear();
     orig_im_size_.clear();
+    mat_entropies_.clear();
+    entropies_.clear();
 
     // Run encoder to get results
     encoder_->EncodeImage(images);

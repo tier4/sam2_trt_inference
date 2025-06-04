@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 project(SAM2-TRT)
 
-# Set build type option
-option(BUILD_TYPE "Build type (Debug/Release)" Release)
-set(CMAKE_BUILD_TYPE ${BUILD_TYPE})
+# Let users specify -DCMAKE_BUILD_TYPE
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type (Debug or Release)" FORCE)
+endif()
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
 # Set C++ standard
 set(CMAKE_CXX_COMPILER "/usr/bin/g++")
@@ -35,14 +37,7 @@ find_package(CUDAToolkit REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(TensorRT REQUIRED)
-
-# Add nlohmann_json
-include(FetchContent)
-FetchContent_Declare(
-  json
-  URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz
-)
-FetchContent_MakeAvailable(json)
+find_package(nlohmann_json REQUIRED)
 
 # Define source files
 set(SOURCES
@@ -97,7 +92,6 @@ target_link_libraries(trtsam2 PRIVATE
   dl
   "stdc++fs"
   "stdc++"
-  nlohmann_json::nlohmann_json
 )
 target_include_directories(trtsam2 PRIVATE include)
 
