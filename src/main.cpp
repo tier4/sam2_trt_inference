@@ -137,7 +137,7 @@ int main(int argc, char** argv)
 
     program.add_argument("--decoder_batch_limit")
         .help("Decoder batch limit")
-        .default_value(static_cast<int>(50))
+        .default_value(static_cast<int>(64))
         .scan<'i', int>();
 
     try
