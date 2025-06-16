@@ -98,15 +98,6 @@ target_include_directories(trtsam2 PRIVATE include)
 # Install targets
 install(TARGETS trt_sam2_infer
   LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
+  PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
-install(TARGETS trtsam2
-  RUNTIME DESTINATION bin
-)
-
-# Install Python package
-install(DIRECTORY python/
-  DESTINATION lib/python3.8/site-packages/trt_sam2
-  FILES_MATCHING PATTERN "*.py"
-)
