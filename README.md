@@ -167,6 +167,7 @@ The program will process each image with its corresponding bounding box file bas
 ## Benchmarks
 - SAM2 base plus model
 - 94 target boxes
+- decoder batch size: 64
 - "whole" includes engine time, image I/O time, as well as pre-process and post-process time
 
 | Device | Precision | Encoder (ms) | Decoder (ms) | Draw (ms) | Whole (ms) |
