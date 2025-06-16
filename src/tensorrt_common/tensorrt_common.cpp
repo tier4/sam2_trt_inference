@@ -189,9 +189,6 @@ TrtCommon::TrtCommon(const std::string& model_path,
       model_profiler_("Model"),
       host_profiler_("Host")
 {
-    // 设置日志级别为VERBOSE，输出最详细的信息
-    // logger_.setReportableSeverity(nvinfer1::ILogger::Severity::kVERBOSE);
-
     // Check given precision is valid one
     if (!is_valid_precision_string(precision))
     {
@@ -442,10 +439,10 @@ void TrtCommon::printNetworkInfo(const std::string& onnx_file_path)
             continue;
         }
 
-        // 检查输入是否有效
+        // Check if input is valid
         if (layer->getNbInputs() == 0)
         {
-            std::cout << "警告：第 " << i << " 层没有输入" << std::endl;
+            std::cout << "Warning: Layer " << i << " has no input" << std::endl;
             std::cout << "layer name: " << name << std::endl;
             continue;
         }
@@ -453,17 +450,17 @@ void TrtCommon::printNetworkInfo(const std::string& onnx_file_path)
         nvinfer1::ITensor* in = layer->getInput(0);
         if (!in)
         {
-            std::cout << "警告：第 " << i << " 层的输入为空指针" << std::endl;
+            std::cout << "Warning: Layer " << i << " has null input" << std::endl;
             std::cout << "layer name: " << name << std::endl;
             continue;
         }
 
         nvinfer1::Dims dim_in = in->getDimensions();
 
-        // 检查输出是否有效
+        // Check if output is valid
         if (layer->getNbOutputs() == 0)
         {
-            std::cout << "警告：第 " << i << " 层没有输出" << std::endl;
+            std::cout << "Warning: Layer " << i << " has no output" << std::endl;
             std::cout << "layer name: " << name << std::endl;
             continue;
         }
@@ -471,7 +468,7 @@ void TrtCommon::printNetworkInfo(const std::string& onnx_file_path)
         nvinfer1::ITensor* out = layer->getOutput(0);
         if (!out)
         {
-            std::cout << "警告：第 " << i << " 层的输出为空指针" << std::endl;
+            std::cout << "Warning: Layer " << i << " has null output" << std::endl;
             std::cout << "layer name: " << name << std::endl;
             continue;
         }
@@ -693,10 +690,10 @@ bool TrtCommon::buildEngineFromOnnx(const std::string& onnx_file_path,
             continue;
         }
 
-        // 检查输出是否有效
+        // Check if output is valid
         if (layer->getNbOutputs() == 0)
         {
-            std::cout << "警告：第 " << i << " 层没有输出" << std::endl;
+            std::cout << "Warning: Layer " << i << " has no output" << std::endl;
             std::cout << "layer name: " << name << std::endl;
             continue;
         }
