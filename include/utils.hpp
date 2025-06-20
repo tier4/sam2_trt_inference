@@ -48,10 +48,5 @@ std::string ReplaceFileExtension(const std::string& str,
                                const std::string& old_str,
                                const std::string& new_str);
 
-// Debugging utilities
-void saveHighDimensionalArrayToCSV(const char* filename,
-                                   const float* arr,
-                                   const int* shape,
-                                   int dims);
-void saveMatToCSV(const cv::Mat& matrix, const std::string& filename);
-void saveBlobToBinary(const cv::Mat& blob, const std::string& filename);
+// Get polygons from mask
+std::vector<std::vector<cv::Point>> get_polygons( const cv::Mat &mask);

@@ -49,3 +49,9 @@
 !assets/*.jpg
 *.txt
 !sample_data/**/*.txt
+
+# Python cache files
+python/**/__pycache__/
+
+# python test files
+/testpy

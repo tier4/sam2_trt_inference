@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 #include "sam2_image_inference.hpp"
 
 #include <iostream>
@@ -22,6 +20,7 @@
 #include <vector>
 
 #include "utils.hpp"
+#include "colormap.hpp"
 
 SAM2Image::SAM2Image(const std::string& encoder_path,
                      const std::string& decoder_path,
@@ -31,6 +30,7 @@ SAM2Image::SAM2Image(const std::string& encoder_path,
     : decoder_batch_limit_(decoder_batch_limit),
       model_precision_(model_precision)
 {
+    cv::setNumThreads(1);
     // Create configuration
     tensorrt_common::BatchConfig batch_config_encoder = {1, 1, 1};
     tensorrt_common::BatchConfig batch_config_decoder = {
@@ -63,6 +63,8 @@ void SAM2Image::RunEncoder(const std::vector<cv::Mat>& images)
     // Clear all variables
     masks_.clear();
     orig_im_size_.clear();
+    mat_entropies_.clear();
+    entropies_.clear();
 
     // Run encoder to get results
     encoder_->EncodeImage(images);
@@ -132,6 +134,9 @@ void SAM2Image::DecodeMask(const cv::Size& orig_im_size,
     masks_per_image.insert(masks_per_image.end(),
                            masks_per_image_per_decoder_batch.begin(),
                            masks_per_image_per_decoder_batch.end());
+    mat_entropies_.insert(
+        mat_entropies_.end(), decoder_->mat_entropies_.begin(), decoder_->mat_entropies_.end());
+    entropies_.insert(entropies_.end(), decoder_->entropies_.begin(), decoder_->entropies_.end());
 }
 
 const std::vector<std::vector<cv::Mat>>& SAM2Image::GetMasks()
@@ -143,4 +148,66 @@ void SAM2Image::ClearBoxes()
 {
     box_coords_.clear();
     box_labels_.clear();
+}
+
+cv::Mat SAM2Image::GetMaxEntropy(float& peak_entropy_score)
+{
+    cv::Mat max_ent, max_ent_jet;
+    if (mat_entropies_.size() == 0)
+    {
+        return max_ent;
+    }
+    int height = mat_entropies_[0].rows;
+    int width = mat_entropies_[0].cols;
+    max_ent = cv::Mat::zeros(height, width, CV_8UC1);
+    max_ent_jet = cv::Mat::zeros(height, width, CV_8UC3);
+
+    for (int i = 0; i < (int)mat_entropies_.size(); i++)
+    {
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                max_ent.at<unsigned char>(y, x) =
+                    (mat_entropies_[i].at<unsigned char>(y, x) > max_ent.at<unsigned char>(y, x))
+                        ? mat_entropies_[i].at<unsigned char>(y, x)
+                        : max_ent.at<unsigned char>(y, x);
+            }
+        }
+    }
+
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            const auto& color = jet_colormap[max_ent.at<unsigned char>(y, x)];
+            max_ent_jet.at<cv::Vec3b>(y, x)[0] = color[0];
+            max_ent_jet.at<cv::Vec3b>(y, x)[1] = color[1];
+            max_ent_jet.at<cv::Vec3b>(y, x)[2] = color[2];
+        }
+    }
+    float sum_ent = 0.0;
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            sum_ent += max_ent.at<unsigned char>(y, x);
+        }
+    }
+    sum_ent /= (width * height);
+    cv::putText(max_ent_jet,
+                std::to_string(sum_ent),
+                cv::Point(32, 32),
+                1,
+                1.0,
+                cv::Scalar(255, 255, 255),
+                1);
+    peak_entropy_score = sum_ent;
+    // return max_ent;
+    return max_ent_jet;
+}
+
+const std::vector<float>& SAM2Image::GetEntropies() const
+{
+    return entropies_;
 }
