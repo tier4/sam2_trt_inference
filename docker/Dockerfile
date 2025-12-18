@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tensorrt:24.01-py3
+FROM nvcr.io/nvidia/tensorrt:24.09-py3
 
 # Set environment to non-interactive to avoid tzdata or other prompts
 ENV DEBIAN_FRONTEND=noninteractive

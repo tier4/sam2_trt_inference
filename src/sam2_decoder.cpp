@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+
 #include "sam2_decoder.hpp"
 
 #include <opencv2/opencv.hpp>
@@ -93,10 +95,10 @@ void SAM2ImageDecoder::Predict(CudaUniquePtrHost<float[]>& image_embed,
 
     Preprocess(point_coords, point_labels, orig_im_size);
 
-    bool success = Infer(image_embed, high_res_feats_0, high_res_feats_1, batch_idx);
+    bool success = Infer(image_embed, high_res_feats_0, high_res_feats_1, batch_idx,point_coords);
     if (!success)
     {
-        throw std::runtime_error("Failed to execute inference");
+        throw std::runtime_error("Failed to execute inference here");
         return;
     }
 
@@ -227,9 +229,12 @@ void SAM2ImageDecoder::Preprocess(const std::vector<std::vector<cv::Point2f>>& p
 bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]>& image_embed,
                              CudaUniquePtrHost<float[]>& high_res_feats_0,
                              CudaUniquePtrHost<float[]>& high_res_feats_1,
-                             const int batch_idx)
+                             const int batch_idx,
+                            const std::vector<std::vector<cv::Point2f>>& point_coords)
 {
-    // Copy fixed shape inputs
+    int current_batch_size = point_coords.size(); // Set this to your current actual batch size (e.g., from Predict or stored variable)
+
+    // Copy fixed-shape inputs to device (with batch offset)
     CHECK_CUDA_ERROR(cudaMemcpyAsync(image_embed_data_d_.get(),
                                      image_embed.get() + batch_idx * image_embed_size_,
                                      image_embed_size_ * sizeof(float),
@@ -246,7 +251,7 @@ bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]>& image_embed,
                                      cudaMemcpyHostToDevice,
                                      *stream_));
 
-    // Copy dynamic shape inputs
+    // Copy dynamic inputs to device
     CHECK_CUDA_ERROR(cudaMemcpyAsync(normalized_coords_data_d_.get(),
                                      normalized_coords_data.get(),
                                      normalized_coords_size_ * sizeof(float),
@@ -268,26 +273,83 @@ bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]>& image_embed,
                                      cudaMemcpyHostToDevice,
                                      *stream_));
 
-    // Prepare GPU buffers
-    std::vector<void*> buffers = {image_embed_data_d_.get(),
-                                  high_res_feats_0_data_d_.get(),
-                                  high_res_feats_1_data_d_.get(),
-                                  normalized_coords_data_d_.get(),
-                                  point_labels_data_d_.get(),
-                                  mask_input_data_d_.get(),
-                                  has_mask_input_data_d_.get(),
-                                  output_mask_data_d_.get(),
-                                  output_confidence_data_d_.get()};
+    // Set dynamic input shapes
+    nvinfer1::Dims normalizedCoordsDims;
+    normalizedCoordsDims.nbDims = 3;
+    normalizedCoordsDims.d[0] = current_batch_size;
+    normalizedCoordsDims.d[1] = 2;
+    normalizedCoordsDims.d[2] = 2;
 
-    // Execute inference
-    bool success = trt_decoder_->enqueueV2(buffers.data(), *stream_, nullptr);
-    if (!success)
+    nvinfer1::Dims pointLabelsDims;
+    pointLabelsDims.nbDims = 2;
+    pointLabelsDims.d[0] = current_batch_size;
+    pointLabelsDims.d[1] = 2;
+
+    nvinfer1::Dims maskInputDims;
+    maskInputDims.nbDims = 4;
+    maskInputDims.d[0] = current_batch_size;
+    maskInputDims.d[1] = 1;
+    maskInputDims.d[2] = encoder_input_size_.height / scale_factor;
+    maskInputDims.d[3] = encoder_input_size_.width / scale_factor;
+
+    // Assign input and output tensor addresses, and set dynamic shapes for dynamic inputs
+    for (int i = 0; i < trt_decoder_->engine_->getNbIOTensors(); ++i)
     {
-        throw std::runtime_error("Failed to execute inference");
-        return false;
+        const char* tensor_name = trt_decoder_->engine_->getIOTensorName(i);
+        auto mode = trt_decoder_->engine_->getTensorIOMode(tensor_name);
+
+        if (mode == nvinfer1::TensorIOMode::kINPUT)
+        {
+            if (strcmp(tensor_name, "image_embed") == 0)
+                trt_decoder_->context_->setInputTensorAddress(tensor_name, image_embed_data_d_.get());
+            else if (strcmp(tensor_name, "high_res_feats_0") == 0)
+                trt_decoder_->context_->setInputTensorAddress(tensor_name, high_res_feats_0_data_d_.get());
+            else if (strcmp(tensor_name, "high_res_feats_1") == 0)
+                trt_decoder_->context_->setInputTensorAddress(tensor_name, high_res_feats_1_data_d_.get());
+            else if (strcmp(tensor_name, "point_coords") == 0)
+            {
+                trt_decoder_->context_->setInputTensorAddress(tensor_name, normalized_coords_data_d_.get());
+                if (!trt_decoder_->context_->setInputShape(tensor_name, normalizedCoordsDims))
+                    throw std::runtime_error("Failed to set input shape for point_coords");
+            }
+            else if (strcmp(tensor_name, "point_labels") == 0)
+            {
+                trt_decoder_->context_->setInputTensorAddress(tensor_name, point_labels_data_d_.get());
+                if (!trt_decoder_->context_->setInputShape(tensor_name, pointLabelsDims))
+                    throw std::runtime_error("Failed to set input shape for point_labels");
+            }
+            else if (strcmp(tensor_name, "mask_input") == 0)
+            {
+                trt_decoder_->context_->setInputTensorAddress(tensor_name, mask_input_data_d_.get());
+                if (!trt_decoder_->context_->setInputShape(tensor_name, maskInputDims))
+                    throw std::runtime_error("Failed to set input shape for mask_input");
+            }
+            else if (strcmp(tensor_name, "has_mask_input") == 0)
+                trt_decoder_->context_->setInputTensorAddress(tensor_name, has_mask_input_data_d_.get());
+            else
+                throw std::runtime_error(std::string("Unknown input tensor name: ") + tensor_name);
+        }
+        else if (mode == nvinfer1::TensorIOMode::kOUTPUT)
+        {
+            if (strcmp(tensor_name, "masks") == 0)
+                trt_decoder_->context_->setOutputTensorAddress(tensor_name, output_mask_data_d_.get());
+            else if (strcmp(tensor_name, "iou_predictions") == 0)
+                trt_decoder_->context_->setOutputTensorAddress(tensor_name, output_confidence_data_d_.get());
+            else
+                throw std::runtime_error(std::string("Unknown output tensor name: ") + tensor_name);
+        }
+        else
+        {
+            throw std::runtime_error("Invalid tensor IO mode.");
+        }
     }
 
-    // Copy output
+    // Enqueue inference
+    bool success = trt_decoder_->enqueueV3(*stream_);
+    if (!success)
+        throw std::runtime_error("Failed to execute inference");
+
+    // Copy outputs back to host asynchronously
     CHECK_CUDA_ERROR(cudaMemcpyAsync(output_mask_data.get(),
                                      output_mask_data_d_.get(),
                                      output_mask_size_ * sizeof(float),
@@ -298,9 +360,16 @@ bool SAM2ImageDecoder::Infer(CudaUniquePtrHost<float[]>& image_embed,
                                      output_confidence_size_ * sizeof(float),
                                      cudaMemcpyDeviceToHost,
                                      *stream_));
+
+    // Synchronize stream to complete all async operations
     CHECK_CUDA_ERROR(cudaStreamSynchronize(*stream_));
+
     return true;
 }
+
+
+
+
 
 void SAM2ImageDecoder::PostProcess(const cv::Size& orig_im_size, const int current_batch_size)
 {

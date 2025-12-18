@@ -13,14 +13,11 @@
 // limitations under the License.
 
 
-
 #include "sam2_encoder.hpp"
-
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
-
 #include "utils.hpp"
 
 SAM2ImageEncoder::SAM2ImageEncoder(const std::string& onnx_path,
@@ -128,6 +125,7 @@ cv::Mat SAM2ImageEncoder::Preprocess(const std::vector<cv::Mat>& images)
     return normalized_images;
 }
 
+
 bool SAM2ImageEncoder::Infer(const cv::Mat& input_tensor)
 {
     // Ensure contiguous memory for input tensor
@@ -150,11 +148,20 @@ bool SAM2ImageEncoder::Infer(const cv::Mat& input_tensor)
         feats_0_data_d_.get(),
     };
 
+
+
+
+    trt_encoder_->context_->setInputTensorAddress(trt_encoder_->engine_->getIOTensorName(0), input_d_.get());
+    trt_encoder_->context_->setOutputTensorAddress(trt_encoder_->engine_->getIOTensorName(3), embed_data_d_.get());
+    trt_encoder_->context_->setOutputTensorAddress(trt_encoder_->engine_->getIOTensorName(2), feats_1_data_d_.get());
+    trt_encoder_->context_->setOutputTensorAddress(trt_encoder_->engine_->getIOTensorName(1), feats_0_data_d_.get());
+
+
     // Execute inference
-    bool success = trt_encoder_->enqueueV2(buffers.data(), *stream_, nullptr);
+    bool success = trt_encoder_->enqueueV3(*stream_);
     if (!success)
     {
-        throw std::runtime_error("Failed to execute inference");
+        throw std::runtime_error("Failed to execute inference encoder");
         return false;
     }
 

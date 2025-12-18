@@ -1,16 +1,4 @@
-// Copyright 2023 TIER IV, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+
 
 #include <NvInferPlugin.h>
 #include <dlfcn.h>
@@ -22,6 +10,9 @@
 #include <string>
 #include <tensorrt_common/tensorrt_common.hpp>
 #include <utility>
+
+
+#define ENSORRT_VERSION_MAJOR 10
 
 // Convert BuildConfigC to tensorrt_common::BuildConfig
 extern "C" void copy_to_cpp_build_config(const BuildConfigC* src,
@@ -718,13 +709,11 @@ bool TrtCommon::buildEngineFromOnnx(const std::string& onnx_file_path,
         batch_config_[0] = input_batch;
     }
 
-    if (batch_config_.at(0) > 1 && (batch_config_.at(0) == batch_config_.at(2)))
-    {
-        // Attention : below API is deprecated in TRT8.4
-        builder->setMaxBatchSize(batch_config_.at(2));
-    }
-    else
-    {
+    // if (batch_config_.at(0) > 1 && (batch_config_.at(0) == batch_config_.at(2)))
+    // {
+    //     // Attention : below API is deprecated in TRT8.4
+    //     builder->setMaxBatchSize(batch_config_.at(2));
+    // }
         auto opt_prof = builder->createOptimizationProfile();
         const auto num_input_layers = network->getNbInputs();
         for (std::int32_t i = 0; i < num_input_layers; i++)
@@ -756,7 +745,6 @@ bool TrtCommon::buildEngineFromOnnx(const std::string& onnx_file_path,
                                     max_input_dims);
         }
         config->addOptimizationProfile(opt_prof);
-    }
     if (precision_ == "int8" && calibrator_)
     {
         config->setFlag(nvinfer1::BuilderFlag::kINT8);
@@ -800,15 +788,16 @@ bool TrtCommon::buildEngineFromOnnx(const std::string& onnx_file_path,
         }
     }
 
-#if (NV_TENSORRT_MAJOR * 1000) + (NV_TENSORRT_MINOR * 100) + NV_TENSOR_PATCH >= 8600
-    if (isAmperePlus)
-    {
-        config->setFlag(nvinfer1::BuilderFlag::kVERSION_COMPATIBLE);
-        config->setHardwareCompatibilityLevel(nvinfer1::HardwareCompatibilityLevel::kAMPERE_PLUS);
-    }
-#endif
+// #if (NV_TENSORRT_MAJOR * 1000) + (NV_TENSORRT_MINOR * 100) + NV_TENSOR_PATCH >= 8600
+//     if (isAmperePlus)
+//     {   
+//         std::cout << "####### HERE ######## {{{{{{{{{{{{{{{{}}}}}}}}}}}}}}}}" << std::endl;
+//         config->setFlag(nvinfer1::BuilderFlag::kVERSION_COMPATIBLE);
+//         config->setHardwareCompatibilityLevel(nvinfer1::HardwareCompatibilityLevel::kAMPERE_PLUS);
+//     }
+// #endif
 
-#if TENSORRT_VERSION_MAJOR >= 8
+// #if TENSORRT_VERSION_MAJOR >= 8
     auto plan =
         TrtUniquePtr<nvinfer1::IHostMemory>(builder->buildSerializedNetwork(*network, *config));
     if (!plan)
@@ -818,10 +807,10 @@ bool TrtCommon::buildEngineFromOnnx(const std::string& onnx_file_path,
     }
     engine_ = TrtUniquePtr<nvinfer1::ICudaEngine>(
         runtime_->deserializeCudaEngine(plan->data(), plan->size()));
-#else
-    engine_ =
-        TrtUniquePtr<nvinfer1::ICudaEngine>(builder->buildEngineWithConfig(*network, *config));
-#endif
+// #else
+//     engine_ =
+//         TrtUniquePtr<nvinfer1::ICudaEngine>(builder->buildSerializedNetwork(*network, *config));
+// #endif
 
     if (!engine_)
     {
@@ -857,7 +846,7 @@ bool TrtCommon::isInitialized()
 
 nvinfer1::DataType TrtCommon::getBindingDataType(const int32_t index) const
 {
-    return engine_->getBindingDataType(index);
+    return engine_->getTensorDataType(engine_->getIOTensorName(index));
 }
 
 nvinfer1::Dims TrtCommon::getBindingDimensions(const int32_t index) const
@@ -874,16 +863,16 @@ nvinfer1::Dims TrtCommon::getBindingDimensions(const int32_t index) const
     }
     else
     {
-        return context_->getBindingDimensions(index);
+        return context_->getTensorShape(engine_->getIOTensorName(index));
     }
 #else
-    return context_->getBindingDimensions(index);
+    return context_->getTensorShape(engine_->getIOTensorName(index));
 #endif
 }
 
 int32_t TrtCommon::getNbBindings()
 {
-    return engine_->getNbBindings();
+    return engine_->getNbIOTensors();
 }
 
 std::string TrtCommon::getIOTensorName(const int32_t index)
@@ -891,18 +880,18 @@ std::string TrtCommon::getIOTensorName(const int32_t index)
     return engine_->getIOTensorName(index);
 }
 
-bool TrtCommon::setBindingDimensions(const int32_t index, const nvinfer1::Dims& dimensions) const
+nvinfer1::Dims TrtCommon::setBindingDimensions(const int32_t index, const nvinfer1::Dims& dimensions) const
 {
-    return context_->setBindingDimensions(index, dimensions);
+    return context_->getTensorShape(engine_->getIOTensorName(index));
 }
 
-bool TrtCommon::enqueueV2(void** bindings, cudaStream_t stream, cudaEvent_t* input_consumed)
+bool TrtCommon::enqueueV3(cudaStream_t stream)
 {
     if (build_config_->profile_per_layer)
     {
         auto inference_start = std::chrono::high_resolution_clock::now();
-
-        bool ret = context_->enqueueV2(bindings, stream, input_consumed);
+        
+        bool ret = context_->enqueueV3(stream);
 
         auto inference_end = std::chrono::high_resolution_clock::now();
         host_profiler_.reportLayerTime(
@@ -912,7 +901,7 @@ bool TrtCommon::enqueueV2(void** bindings, cudaStream_t stream, cudaEvent_t* inp
     }
     else
     {
-        return context_->enqueueV2(bindings, stream, input_consumed);
+        return context_->enqueueV3(stream);
     }
 }
 
@@ -966,10 +955,10 @@ std::string TrtCommon::dataType2String(nvinfer1::DataType dataType) const
     return ret;
 }
 
-bool TrtCommon::bindingIsInput(const int32_t index) const
-{
-    return engine_->bindingIsInput(index);
-}
+// bool TrtCommon::bindingIsInput(const int32_t index) const
+// {
+//     return engine_->getTensorIOMode(engine_->getIOTensorName(index));
+// }
 
 std::vector<std::string> TrtCommon::getDebugTensorNames(void)
 {

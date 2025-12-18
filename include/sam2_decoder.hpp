@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #pragma once
 
 #include <cuda_utils/cuda_unique_ptr.hpp>
@@ -56,6 +57,7 @@ class SAM2ImageDecoder
     std::vector<cv::Mat> mat_entropies_;
     std::vector<float> entropies_;
     std::unique_ptr<tensorrt_common::TrtCommon> trt_decoder_;
+    
 
     // CPU input data
     CudaUniquePtrHost<float[]> image_embed_data;
@@ -65,6 +67,7 @@ class SAM2ImageDecoder
     CudaUniquePtrHost<float[]> point_labels_data;
     CudaUniquePtrHost<float[]> mask_input_data;
     CudaUniquePtrHost<float[]> has_mask_input_data;
+
     // CPU output data
     CudaUniquePtrHost<float[]> output_mask_data;
     CudaUniquePtrHost<float[]> output_confidence_data;
@@ -96,6 +99,10 @@ class SAM2ImageDecoder
     CudaUniquePtr<float[]> point_labels_data_d_;
     CudaUniquePtr<float[]> mask_input_data_d_;
     CudaUniquePtr<float[]> has_mask_input_data_d_;
+    CudaUniquePtr<float[]> point_coords_data_d_;
+    CudaUniquePtr<float[]> point_coords_data;
+    size_t point_coords_size_;
+
     // GPU output data
     CudaUniquePtr<float[]> output_mask_data_d_;
     CudaUniquePtr<float[]> output_confidence_data_d_;
@@ -112,7 +119,8 @@ class SAM2ImageDecoder
     bool Infer(CudaUniquePtrHost<float[]>& image_embed,
                CudaUniquePtrHost<float[]>& high_res_feats_0,
                CudaUniquePtrHost<float[]>& high_res_feats_1,
-               const int batch_idx);
+               const int batch_idx,
+            const std::vector<std::vector<cv::Point2f>>& point_coords);
 
     // Process inference results
     void PostProcess(const cv::Size& orig_im_size, const int current_batch_size);

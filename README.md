@@ -24,7 +24,7 @@ A high-performance TensorRT inference framework for Segment Anything Model 2 (SA
 - NVIDIA driver (550+)
 - CUDA Toolkit (12.3+)
 - cuDNN (8.9.7+)
-- TensorRT (8.6.1+)
+- TensorRT (10.0.x+)
 - OpenCV (4.5.4+)
 - Boost libraries (1.74.0+)
 - CMake (3.10+)

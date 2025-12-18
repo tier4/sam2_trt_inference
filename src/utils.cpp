@@ -13,7 +13,6 @@
 // limitations under the License.
 
 
-
 #include "utils.hpp"
 
 #include "omp.h"

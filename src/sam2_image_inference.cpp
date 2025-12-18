@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "sam2_image_inference.hpp"
 
+
+#include "sam2_image_inference.hpp"
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <string>

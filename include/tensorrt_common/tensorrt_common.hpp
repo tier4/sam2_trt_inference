@@ -1,4 +1,4 @@
-// Copyright 2023 TIER IV, Inc.
+// Copyright 2025 Tier IV, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+
 
 #ifndef TENSORRT_COMMON__TENSORRT_COMMON_HPP_
 #define TENSORRT_COMMON__TENSORRT_COMMON_HPP_
@@ -126,7 +128,7 @@ struct InferDeleter  // NOLINT
 #if TENSORRT_VERSION_MAJOR >= 8
             delete obj;
 #else
-            obj->destroy();
+            delete obj;
 #endif
         }
     }
@@ -201,8 +203,8 @@ class TrtCommon  // NOLINT
     nvinfer1::Dims getBindingDimensions(const int32_t index) const;
     std::string getIOTensorName(const int32_t index);
     int32_t getNbBindings();
-    bool setBindingDimensions(const int32_t index, const nvinfer1::Dims& dimensions) const;
-    bool enqueueV2(void** bindings, cudaStream_t stream, cudaEvent_t* input_consumed);
+    nvinfer1::Dims setBindingDimensions(const int32_t index, const nvinfer1::Dims& dimensions) const;
+    bool enqueueV3(cudaStream_t stream);
 
     /**
      * @brief output per-layer information
@@ -218,16 +220,18 @@ class TrtCommon  // NOLINT
 
     std::string dataType2String(nvinfer1::DataType dataType) const;
 
-    bool bindingIsInput(const int32_t index) const;
+    // bool bindingIsInput(const int32_t index) const;
 
     std::vector<std::string> getDebugTensorNames(void);
+    
+    TrtUniquePtr<nvinfer1::ICudaEngine> engine_;
+    TrtUniquePtr<nvinfer1::IExecutionContext> context_;
 
    private:
     Logger logger_;
     fs::path model_file_path_;
     TrtUniquePtr<nvinfer1::IRuntime> runtime_;
-    TrtUniquePtr<nvinfer1::ICudaEngine> engine_;
-    TrtUniquePtr<nvinfer1::IExecutionContext> context_;
+
     std::unique_ptr<nvinfer1::IInt8Calibrator> calibrator_;
 
     nvinfer1::Dims input_dims_;

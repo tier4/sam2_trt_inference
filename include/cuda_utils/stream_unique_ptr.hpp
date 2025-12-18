@@ -1,4 +1,4 @@
-// Copyright 2022 Tier IV, Inc.
+// Copyright 2025 Tier IV, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This code is licensed under CC0 1.0 Universal (Public Domain).
-// You can use this without any limitation.
-// https://creativecommons.org/publicdomain/zero/1.0/deed.en
-// borrowed from https://proc-cpuinfo.fixstars.com/2019/02/cuda_smart_pointer/
+
 
 #ifndef CUDA_UTILS__STREAM_UNIQUE_PTR_HPP_
 #define CUDA_UTILS__STREAM_UNIQUE_PTR_HPP_
