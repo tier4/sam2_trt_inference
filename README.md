@@ -3,6 +3,36 @@
 A high-performance TensorRT inference framework for Segment Anything Model 2 (SAM2) implemented in C++, with tools for model conversion from ONNX to TensorRT engine.
 ![SAM2 TensorRT C++ Inference](assets/thumbnail.jpg)
 
+## Modal Pipeline
+
+`modal_app.py` packages this repository as a Modal app that:
+
+- builds `libtrt_sam2_infer.so` inside the image
+- prepares encoder and decoder TensorRT engines on an `L40S` worker
+- runs bbox-guided inference through the existing Python `ctypes` wrapper
+
+Deploy it with:
+
+```bash
+modal deploy modal_app.py
+```
+
+Build engines from local or `gs://` ONNX files:
+
+```bash
+modal run modal_app.py::prepare_engines \
+  --encoder-onnx-uri gs://bucket/encoder.onnx \
+  --decoder-onnx-uri gs://bucket/decoder.onnx
+```
+
+Then run one inference call:
+
+```bash
+modal run modal_app.py \
+  --frame-uri gs://bucket/frame.jpg \
+  --boxes-json '[[0.1, 0.1, 0.4, 0.4]]'
+```
+
 ## Features
 
 - **High-Performance Inference**: Optimized C++ implementation using TensorRT for fast SAM2 model inference
